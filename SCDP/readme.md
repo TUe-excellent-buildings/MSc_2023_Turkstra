@@ -7,7 +7,7 @@ Note that the code related to the evolutionary algorithm is not published in thi
 The following code is included in this directory:
 
 * an executable that can carry out the SCDP with performance clusters on a building spatial design
-* an executable that can carry out the SCDP with boundary spaces on a building spatial design
+* an executable that can carry out the SCDP with boundary spaces on a building spatial design 
 
 Furthermore the following supplementary data is supplied:
 
