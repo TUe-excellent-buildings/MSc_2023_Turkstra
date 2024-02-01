@@ -4,12 +4,13 @@
 #include <iostream>
 
 
-typedef void (*ButtonCallback)(void);
+typedef void (*ButtonCallback)(int);
 
 struct Button {
     float x, y, width, height;
     ButtonCallback callback;
     const char* text;
+    int variable;
 };
 
 struct TextField {
@@ -67,7 +68,7 @@ void assignmentDescriptionScreen();
 void screen3();
 void screen4();
 void drawText(const char *text, float x, float y);
-void drawButton(const char *text, float x, float y, float width, float height, ButtonCallback callback);
+void drawButton(const char *text, float x, float y, float width, float height, ButtonCallback callback, int variable);
 void drawArrow(float x, float y, bool leftArrow);
 void drawUndoRedoButtons();
 void drawTextField(int x, int y, int width, int height, TextField& textfield);
@@ -75,9 +76,17 @@ void onMouseClick(int button, int state, int x, int y);
 void drawBuilding();
 void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, const std::vector<std::string>& column2);
 
+void buttonClicked(int variable) {
+    std::cout << "Button clicked: " << variable << std::endl;
+}
+
+void changeScreen(int screen) {
+    currentScreen = screen;
+    glutPostRedisplay();
+}
+
 
 void display() {
-    glDisable(GL_MULTISAMPLE);
     // Clear the window with white background
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -196,12 +205,8 @@ void drawText(const char *text, float centerX, float centerY, float textWidth) {
     }
 }
 
-void buttonClicked() {
-    std::cout << "Button clicked" << std::endl;
-}
 
-
-void drawButton(const char *text, float x, float y, float width, float height, ButtonCallback callback) {
+void drawButton(const char *text, float x, float y, float width, float height, ButtonCallback callback, int variable) {
     float borderWidth = 2.0;
 
     glColor3f(0.0, 0.0, 0.0); // Black color for border
@@ -230,13 +235,13 @@ void drawButton(const char *text, float x, float y, float width, float height, B
     glColor3f(0.0, 0.0, 0.0);
     drawText(text, centerX, centerY, textWidth);
 
-    Button button = {x, y, width, height, callback, text};
+    Button button = {x, y, width, height, callback, text, variable};
     buttons.push_back(button);
 }
 
 void onMouseClick(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        float mouseY = screenHeight - static_cast<float>(y); 
+        float mouseY = screenHeight - static_cast<float>(y);
         float mouseX = static_cast<float>(x);
 
         for (const auto& btn : buttons) {
@@ -244,7 +249,7 @@ void onMouseClick(int button, int state, int x, int y) {
                 mouseY >= btn.y && mouseY <= btn.y + btn.height) {
                 // Button was clicked
                 if (btn.callback) {
-                    btn.callback();
+                    btn.callback(btn.variable);
                 }
                 break;
             }
@@ -351,19 +356,19 @@ void drawArrow(float x, float y, bool leftArrow) {
 void drawUndoRedoButtons() {
     // Undo Button
     glColor3f(0.7, 0.7, 0.7); // Button color
-    drawButton("", 10, screenHeight - 60, 50, 50, buttonClicked);
+    drawButton("", 10, screenHeight - 60, 50, 50, buttonClicked, 1);
     glColor3f(0, 0, 0); // Arrow color
     drawArrow(10, screenHeight - 60, false); // Left arrow for undo
 
     // Redo Button
     glColor3f(0.7, 0.7, 0.7); // Button color
-    drawButton("", 70, screenHeight - 60, 50, 50, buttonClicked);
+    drawButton("", 70, screenHeight - 60, 50, 50, buttonClicked, 1);
     glColor3f(0, 0, 0); // Arrow color
     drawArrow(70, screenHeight - 60, true); // Right arrow for redo
 
     // Reset Button
     glColor3f(0.7, 0.7, 0.7); // Button color
-    drawButton("Reset", 10, screenHeight - 120, 110, 50, buttonClicked);
+    drawButton("Reset", 10, screenHeight - 120, 110, 50, buttonClicked, 1);
 }
 
 void drawBuilding() {
@@ -490,7 +495,7 @@ void mainScreen() {
     drawText("This is your initial building spatial design. This is the starting point of the exercise. You can rotate and change the view of the model to get familiar with the design.", 1550, 850, 250);
 
     // Draw the "Next step" button in the bottom right corner
-    drawButton("-> | Next step", 1590, 50, 200, 50, buttonClicked);
+    drawButton("-> | Next step", 1590, 50, 200, 50, changeScreen, 1);
 }
 
 void assignmentDescriptionScreen() {
@@ -515,7 +520,7 @@ void assignmentDescriptionScreen() {
 
 
     // Draw the "Next step" button in the bottom right corner
-    drawButton("View structural design", 1520, 50, 200, 50, buttonClicked);
+    drawButton("View structural design", 1520, 50, 200, 50, changeScreen, 2);
 }
 
 void screen3() {
@@ -537,21 +542,21 @@ void screen3() {
 
 
     // Draw the "Next step" button in the bottom right corner
-    drawButton("View new spatial design", 1450, 50, 300, 50, buttonClicked);
+    drawButton("View new spatial design", 1450, 50, 300, 50, changeScreen, 3);
 }
 
 void screen4() {
     drawText("1. Did you like the assignment?", 400, 800, 400);
-    drawButton("1", 300, 750, 50, 30, buttonClicked);
-    drawButton("2", 350, 750, 50, 30, buttonClicked);
-    drawButton("3", 400, 750, 50, 30, buttonClicked);
-    drawButton("4", 450, 750, 50, 30, buttonClicked);
-    drawButton("5", 500, 750, 50, 30, buttonClicked);
-    drawButton("6", 550, 750, 50, 30, buttonClicked);
-    drawButton("7", 600, 750, 50, 30, buttonClicked);
-    drawButton("8", 650, 750, 50, 30, buttonClicked);
-    drawButton("9", 700, 750, 50, 30, buttonClicked);
-    drawButton("10", 750, 750, 50, 30, buttonClicked);
+    drawButton("1", 300, 750, 50, 30, buttonClicked, 1);
+    drawButton("2", 350, 750, 50, 30, buttonClicked, 1);
+    drawButton("3", 400, 750, 50, 30, buttonClicked, 1);
+    drawButton("4", 450, 750, 50, 30, buttonClicked, 1);
+    drawButton("5", 500, 750, 50, 30, buttonClicked, 1);
+    drawButton("6", 550, 750, 50, 30, buttonClicked, 1);
+    drawButton("7", 600, 750, 50, 30, buttonClicked, 1);
+    drawButton("8", 650, 750, 50, 30, buttonClicked, 1);
+    drawButton("9", 700, 750, 50, 30, buttonClicked, 1);
+    drawButton("10", 750, 750, 50, 30, buttonClicked, 1);
 
     drawText("Please explain:", 300, 630, 200);
     drawTextField(300, 400, 300, 200, spaceTF);
@@ -562,7 +567,7 @@ void screen4() {
     glVertex2f(1400.0f, screenHeight); // End point of the line at the bottom
     glEnd();
 
-    drawButton("-> | Next", 1590, 50, 200, 50, buttonClicked);
+    drawButton("-> | Next", 1590, 50, 200, 50, buttonClicked, 1);
 }
 
 int main(int argc, char** argv) {

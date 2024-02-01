@@ -477,9 +477,9 @@ int main(int argc, char* argv[])
             auto spaceToDelete = spacePerformances[i].second;
 
             // Assuming spaceToDelete is a pointer
-            newMS.deleteSpace(spaceToDelete.get());
+            // newMS.deleteSpace(spaceToDelete.get());
             // If spaceToDelete is a reference, use the following instead:
-            // newMS.deleteSpace(*spaceToDelete);
+            newMS.deleteSpace(*spaceToDelete);
         }
         newMS.setZZero();
 		std::vector<spatial_design::ms_space*> floatingSpaces;
