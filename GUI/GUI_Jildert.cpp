@@ -83,6 +83,7 @@ void buttonClicked(int variable) {
 void changeScreen(int screen) {
     currentScreen = screen;
     glutPostRedisplay();
+    buttons.clear();
 }
 
 
