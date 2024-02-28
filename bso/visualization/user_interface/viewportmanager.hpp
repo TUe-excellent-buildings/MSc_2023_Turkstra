@@ -5,11 +5,7 @@
 #include <bso/visualization/models/model_base.hpp>
 #include <bso/visualization/utilities/camera.hpp>
 
-#ifdef __unix__                    /* __unix__ is usually defined by compilers targeting Unix systems */
-#include <GL/glut.h>
-#elif defined(_WIN32) || defined(WIN32)     /* _Win32 is usually defined by compilers targeting 32 or   64 bit Windows systems */
-#include <glut.h>
-#endif
+#include <GL/freeglut.h>
 
 #include <math.h>
 #include <list>
@@ -31,6 +27,7 @@ namespace bso { namespace visualization
             lmousestate(GLUT_UP), lclicktime(0) { }
 
         void addviewport(viewport *pviewport);
+        void changeviewport(viewport *pviewport);
 
         //event handlers
         void render(camera &cam);
@@ -75,6 +72,18 @@ namespace bso { namespace visualization
     {
         if (pviewport){
             viewports.push_back(pviewport);
+            update_viewport_sizes();
+        }
+    }
+
+    void viewportmanager::changeviewport(viewport *pviewport)
+    {
+        if (pviewport){
+            if(viewports.empty()) viewports.push_back(pviewport);
+            else{
+                viewports.clear();
+                viewports.push_back(pviewport);
+            }
             update_viewport_sizes();
         }
     }

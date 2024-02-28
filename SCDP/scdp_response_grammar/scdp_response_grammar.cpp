@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
 	double etaNoise = 0;
 	int etaConverge = 0;
 	std::string checkingOrder = "123";
-	unsigned int iterations = 0;
+	unsigned int iterations = 5;
 	double spaceRemoveRatio = 0.1;
 
 	std::vector<std::string> args(argv+1, argv+argc);
@@ -479,7 +479,7 @@ int main(int argc, char* argv[])
             // Assuming spaceToDelete is a pointer
             // newMS.deleteSpace(spaceToDelete.get());
             // If spaceToDelete is a reference, use the following instead:
-            newMS.deleteSpace(*spaceToDelete);
+			if(spaceToDelete != NULL && spaceToDelete->getID() != 0) newMS.deleteSpace(*spaceToDelete);
         }
         newMS.setZZero();
 		std::vector<spatial_design::ms_space*> floatingSpaces;
@@ -580,15 +580,3 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
