@@ -639,7 +639,7 @@ void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vect
 }
 
 void introScreen() {
-    drawText("Hello and welcome to this MSc project by Janneke Heuvelman. We are glad to have you here and hope you will have a nice experience. In case of any problems, be sure to contact Janneke via email: j.turkstra@student.tue.nl. Please select the Assignment number:",
+    drawText("Hello and welcome to this MSc project by Jildert Turkstra. We are glad to have you here and hope you will have a nice experience. In case of any problems, be sure to contact Jildert via email: j.turkstra@student.tue.nl. Please select the Assignment number:",
     900, 800, 400);
 
     drawButton("Assignment 1", 800, 650, 200, 50, changeScreen, 1);
