@@ -7,11 +7,9 @@
 #include <bso/visualization/utilities/datatypes.hpp>
 #include <bso/visualization/utilities/mat4.hpp>
 
-#ifdef __unix__                    /* __unix__ is usually defined by compilers targeting Unix systems */
-#include <GL/glut.h>
-#elif defined(_WIN32) || defined(WIN32)     /* _Win32 is usually defined by compilers targeting 32 or   64 bit Windows systems */
-#include <glut.h>
-#endif
+
+#include <GL/freeglut.h>
+
 
 #include <math.h>
 #include <algorithm>
