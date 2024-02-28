@@ -4,12 +4,9 @@
 #include <bso/visualization/utilities/vect3.hpp>
 #include <bso/visualization/utilities/vect4.hpp>
 
-#ifdef __unix__
+
 // see http://stackoverflow.com/questions/31579243/segmentation-fault-before-main-when-using-glut-and-stdstring
-#include <GL/glut.h>
-#elif defined(_WIN32) || defined(WIN32)
-#include <glut.h>
-#endif
+#include <GL/freeglut.h>
 
 #include <string>
 
