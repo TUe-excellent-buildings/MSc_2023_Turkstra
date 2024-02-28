@@ -207,6 +207,7 @@ void motion(int x, int y)
     vpmanager_local.mousemove_event(x, y);
 
     glutPostRedisplay();
+    buttons.clear();
 }
 
 void passive_motion(int x, int y)
