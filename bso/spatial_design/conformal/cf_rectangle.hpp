@@ -7,7 +7,7 @@ namespace bso { namespace spatial_design { namespace conformal {
 											 public cf_geometry_entity
 	{
 	private:
-		
+		char mRectangleID = 'A'; // Changed to char type
 	public:
 		cf_rectangle(const utilities::geometry::quadrilateral& rhs, cf_geometry_model* geomModel);
 		~cf_rectangle();
@@ -23,6 +23,8 @@ namespace bso { namespace spatial_design { namespace conformal {
 		void addEdge					(cf_edge*				ePtr	) = delete;
 		void addSpace					(cf_space*			spPtr	) = delete;
 		
+		void setRectangleID(const char& rectangleID) {mRectangleID = rectangleID;} // Changed parameter type to char
+
 		const std::vector<cf_rectangle*	>& cfRectangles() = delete;
 		const std::vector<cf_point*			>& cfPoints() 		= delete;
 		const std::vector<cf_edge*			>& cfEdges() 			= delete;
