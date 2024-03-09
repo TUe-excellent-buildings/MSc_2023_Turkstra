@@ -34,10 +34,9 @@ void out(const T& t, const bool& e = false,
 } // out()
 
 using namespace bso;
-
 int main(int argc, char* argv[])
 {
-	std::string inputFile = "v.txt";
+	std::string inputFile = "";
 	std::string designName = "";
 	std::string inputLine = "";
 	std::vector<std::string> visualizations;
@@ -46,14 +45,14 @@ int main(int argc, char* argv[])
 	bool verbose = false;
 	bool outputAll = false;
 	bool outputBest = false;
-	double etaBend = 0.2;
-	double etaAx = 0.2;
-	double etaShear = 0.2;
-	double etaNoise = 0.025;
-	int etaConverge = 1;
-	int nSpacesDelete = 2;
+	double etaBend = 0;
+	double etaAx = 0;
+	double etaShear = 0;
+	double etaNoise = 0;
+	int etaConverge = 0;
+	int nSpacesDelete = 0;
 	std::string checkingOrder = "123";
-	int iterations = 5;
+	unsigned int iterations = 0;
 
 	std::vector<std::string> args(argv+1, argv+argc);
 	auto arg = args.begin();
@@ -66,7 +65,169 @@ int main(int argc, char* argv[])
 	}
 	while (arg != args.end())
 	{
-		if (*arg == "-v" || *arg == "--visualize")
+		if (*arg == "-h" || *arg == "--help")
+		{
+			std::cout << "This program ...." << std::endl;
+			std::cout << std::endl;
+			std::cout << "-i\t" << "or --input, to specify an input file,\n"
+								<<   "\t" << "expects a string containing the file name\n"
+								<<   "\t" << "of the input file. The input file should be\n"
+								<<   "\t" << "in \'Movable Sizable\' format.\n";
+			std::cout << "-l\t" << "or --loops, to specify the number of loops\n"
+								<<   "\t" << "that will be applied. Expects only a positive integer\n";
+			std::cout << "-e\t" << "or --export, to specify the diferent outputs:\n"
+								<<   "\t" << "\'result_line\' prints a line with the input\n"
+								<<   "\t" << "parameters and the results; \'verbose\' prints\n"
+								<<   "\t" << "a descriptive outline of the process;\n"
+								<<   "\t" << "\'ms_files\' will write the ms designs to files\n"
+								<<   "\t" << "\'all\' will write all the designs to the specified format\n"
+								<<   "\t" << "\'best\' (default) will only write the best all the designs to\n"
+								<<   "\t" << "the specified format. More than one option can be given,\n"
+								<<   "\t" << "but \'all\' and \'best\' cannot be given simultaneously.\n";
+			std::cout << "-v\t" << "or --visualization, to specify which models are\n"
+								<<   "\t" << "visualized: \'ms\' for \'Movable Sizable\',\n"
+								<<   "\t" << "\'sc\' for \'Super Cube\', \'rc\' for \'conformal model with\n"
+								<<   "\t" << "ReCtangles\', \'cb\' for \'conformal model with CuBoids\'\n"
+								<<   "\t" << "\'sd\' for'\'Structural Design\', \'fe\' for \'Finite\n"
+								<<   "\t" << "Elements of the structural design model\',\n"
+								<<   "\t" << "and \'bp\' for the \'Building Physics model\'.\n"
+								<<   "\t" << "More than one can be specified.\n";
+            std::cout << "-s\t"	<< "or --shear, expects a real value x where 0 <= x <= 1\n";
+            std::cout << "-a\t" << "or --axial, expects a real value x where 0 <= x <= 1\n";
+            std::cout << "-b\t" << "or --bending, expects a real value x where 0 <= x <= 1\n";
+            std::cout << "-c\t" << "or --convergence, expects a positive integer larger than 0.\n";
+            std::cout << "-x\t" << "or --nSpacesDelete, expects a positive integer larger than 0.\n";
+			std::cout << "-n\t" << "or --noise, expects a real value x where 0 <= x <= 1\n";
+            std::cout << "-o\t" << "or --order, expects a string of three integers with value 1, 2, or 3.\n";
+			std::cout << "\n\n" << "Press ENTER to continue..." << std::endl;
+			std::cin.get();
+			return 0;
+		}
+		else if (*arg == "-i" || *arg == "--input")
+		{
+			if (++arg == args.end() || arg->operator[](0) == '-')
+			{
+				std::stringstream errorMessage;
+				errorMessage << "\nError, expected the name of the input file after -i or --input\n"
+										 << "Use -h or --help for help" << std::endl;
+				throw std::invalid_argument(errorMessage.str());
+			}
+			inputFile = *arg;
+			boost::trim(inputFile);
+			designName = inputFile;
+			++arg;
+		}
+		else if (*arg == "-l" || *arg == "--loops")
+		{
+			if (++arg == args.end() || arg->operator[](0) == '-')
+			{
+				std::stringstream errorMessage;
+				errorMessage << "\nError, expected a positive integer to be\n"
+										 << "specified after -l or --loops. Use -h or\n"
+										 << "--help for help\n";
+				throw std::invalid_argument(errorMessage.str());
+			}
+			try
+			{
+				iterations = bso::utilities::trim_and_cast_uint(*arg);
+			}
+			catch (std::exception& e)
+			{
+				std::stringstream errorMessage;
+				errorMessage << "\nError, could not parse argument specified after\n"
+										 << "-l or --loops. received the following error:\n"
+										 << e.what()
+										 << "Use -h or -- help for help\n";
+				throw std::invalid_argument(errorMessage.str());
+			}
+
+			if (++arg != args.end() && arg->operator[](0) != '-')
+			{
+				std::stringstream errorMessage;
+				errorMessage << "\nError, only one argument can be specified after\n"
+										 << "-l or --loops. Use -h or -- help for help\n";
+				throw std::invalid_argument(errorMessage.str());
+			}
+		}
+        else if (*arg == "-s" || *arg == "--shear")
+        {
+            if (++arg == args.end() || (*arg)[0] == '-') throw std::domain_error("Expected a value after -s or --shear");
+            double value = bso::utilities::trim_and_cast_double(*arg);
+            if (value < 0 || value > 1) throw std::domain_error("expected a value between 0 and 1 for eta_shear");
+            etaShear = value;
+            arg++;
+        }
+        else if (*arg == "-a" || *arg == "--axial")
+        {
+            if (++arg == args.end() || (*arg)[0] == '-') throw std::domain_error("Expected a value afyer -a or --axial");
+            double value = bso::utilities::trim_and_cast_double(*arg);
+            if (value < 0 || value > 1) throw std::domain_error("expected a value between 0 and 1 for eta_ax");
+            etaAx = value;
+            arg++;
+        }
+        else if (*arg == "-b" || *arg == "--bend")
+        {
+            if (++arg == args.end() || (*arg)[0] == '-') throw std::domain_error("Expected a balue after -b or --bend");
+            double value = bso::utilities::trim_and_cast_double(*arg);
+            if (value < 0 || value > 1) throw std::domain_error("expected a value between 0 and 1 for eta_bend");
+            etaBend = value;
+            arg++;
+        }
+		else if (*arg == "-n" || *arg == "--noise")
+        {
+            if (++arg == args.end() || (*arg)[0] == '-') throw std::domain_error("Expected a value after -n or --noise");
+            double value = bso::utilities::trim_and_cast_double(*arg);
+            if (value < 0 || value > 1) throw std::domain_error("expected a value between 0 and 1 for eta_noise");
+            etaNoise = value;
+            arg++;
+        }
+        else if (*arg == "-c" || *arg == "--convergence")
+        {
+            if (++arg == args.end() || (*arg)[0] == '-') throw std::domain_error("Expected a value after -c or --convergence");
+            int value = bso::utilities::trim_and_cast_int(*arg);
+            if (value < 1) throw std::domain_error("Expected a positive int larger than zero for eta_convergence");
+            etaConverge = value;
+            arg++;
+        }
+		else if (*arg == "-x" || *arg == "--nSpacesDelete")
+        {
+            if (++arg == args.end() || (*arg)[0] == '-') throw std::domain_error("Expected a value after -x or --nSpacesDelete");
+            int value = bso::utilities::trim_and_cast_int(*arg);
+            if (value < 1) throw std::domain_error("Expected a positive int larger than zero for nSpacesDelete");
+            nSpacesDelete = value;
+            arg++;
+        }
+        else if (*arg == "-o" || *arg == "--order")
+        {
+            if (++arg == args.end() || (*arg)[0] == '-') throw std::domain_error("Expected a value after -o or --order");
+            std::string value = *arg;
+            if (value.size() != 3) throw std::domain_error("Expected a string of three ints with value 1, 2, or 3 for checking order");
+            for (auto c : value) if (c < '1' || c > '3') throw std::domain_error("Expected a string of three ints with value 1, 2, or 3 for checking order");
+            checkingOrder = value; // add the four at the back for no structure
+            arg++;
+        }
+		else if (*arg == "-e" || *arg == "--export")
+		{
+			while (++arg != args.end() && arg->operator[](0) != '-')
+			{
+				std::string outSpec = *arg;
+				boost::trim(outSpec);
+				if 			(outSpec == "result_line") result_line = true;
+				else if (outSpec == "verbose") verbose = true;
+				else if (outSpec == "ms_files") ms_files = true;
+				else if (outSpec == "all") outputAll = true;
+				else if (outSpec == "best") outputBest = true;
+				else
+				{
+					std::stringstream errorMessage;
+					errorMessage << "\nError, did not recognize: " << outSpec << " as an\n"
+											 << "argument for -e or --export. Use -h or\n"
+											 << "--help for help\n";
+					throw std::invalid_argument(errorMessage.str());
+				}
+			}
+		}
+		else if (*arg == "-v" || *arg == "--visualize")
 		{
 			while (++arg != args.end() && arg->operator[](0) != '-')
 			{
@@ -98,13 +259,35 @@ int main(int argc, char* argv[])
 			throw std::invalid_argument(errorMessage.str());
 		}
 	}
+	if (inputFile == "" && inputLine == "")
+	{
+		std::stringstream errorMessage;
+		errorMessage << "\nError, expected an input file or line to be specified.\n"
+								 << "use -h or --help for help\n";
+		throw std::invalid_argument(errorMessage.str());
+	}
+	if ((ms_files || result_line) && (outputAll && outputBest))
+	{
+		std::stringstream errorMessage;
+		errorMessage << "Cannot specify both \'all\'  and \'best\' for output.\n"
+								 << "use -h or --help for help\n";
+		throw std::invalid_argument(errorMessage.str());
+	}
+	if (!outputAll && !outputBest) outputBest = true;
+	out("Parsed program arguments", true, true, verbose);
 	// if (!visualizations.empty()) visualization::initVisualization(argc,argv);
 	// out("Initialized visualization", true, true, verbose);
 
 	std::vector<spatial_design::ms_building> msDesigns;
+	std::vector<spatial_design::ms_building> msDesignsTemp;
 	try
 	{
 		if (!inputFile.empty()) msDesigns.push_back(spatial_design::ms_building(inputFile));
+		else
+		{
+			spatial_design::sc_building sc(inputLine);
+			msDesigns.push_back(spatial_design::ms_building(sc));
+		}
 	}
 	catch (std::exception& e)
 	{
@@ -126,12 +309,10 @@ int main(int argc, char* argv[])
 	std::vector<structural_design::sd_model> sdModels;
 	std::vector<building_physics::bp_model> bpModels;
 
-
 	bso::structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
 	bso::structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
 	bso::structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
 	bso::structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
-
 	// LOOP
 	for (unsigned int i = 0; i <= iterations; ++i)
 	{
