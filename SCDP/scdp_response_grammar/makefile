@@ -8,9 +8,9 @@ ALL_LIB = -I$(BOOST) -I$(EIGEN) -I$(BSO)
 
 # Compiler settings
 CPP   = g++ -std=c++17
-FLAGS  = -O3 -lglut -lGL -lGLU
+FLAGS  = -g -O0 -fsanitize=address -lglut -lGL -lGLU
 
-MAINFILE = scdp_response_grammar.cpp
+MAINFILE = SCDP_ranking_new.cpp
 
 .PHONY: all cls clean
 
@@ -20,6 +20,6 @@ cls:
 	@clear
 	@clear
 all:
-	$(CPP) -o scdp_response_grammar $(ALL_LIB) $(MAINFILE) $(FLAGS)
+	$(CPP) -o scdp_ranking $(ALL_LIB) $(MAINFILE) $(FLAGS)
 clean:
 	@rm -f get_results
