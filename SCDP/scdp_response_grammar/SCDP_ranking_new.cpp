@@ -395,11 +395,15 @@ int main(int argc, char* argv[])
 	}
     out("finished SCDP process",true,true,verbose);
 
-	if (!visualizations.empty()) visualization::initVisualization(argc,argv);
+	std::cout << "Number of designs: " << msDesigns.size() << std::endl;
+	visualization::initVisualization(argc,argv);
+	std::cout << "Visualizing initialized!" << std::endl;
 	for(int i = 0; i < msDesigns.size(); i++)
 	{
+		std::cout << "Visualizing design " << i << std::endl;
 		visualization::visualize(msDesigns[i],"","ms_building",4.0);
 	}
+	std::cout << "Visualizing finished!" << std::endl;
 	visualization::endVisualization();
 
 	return 0;
