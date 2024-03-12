@@ -1,4 +1,4 @@
-# Makefile for GUI_Janneke
+# Makefile for GUI_Jildert
 #libraries
 BOOST   = /usr/include/boost
 EIGEN   = /usr/include/eigen
@@ -7,8 +7,8 @@ BSO     = /home/kknopp/Documents/MSc_2023_Turkstra
 ALL_LIB = -I$(BOOST) -I$(EIGEN) -I$(BSO)
 
 # Compiler settings
-CPP   = g++ -std=c++17
-FLAGS  = -g -O0 -fsanitize=address -lglut -lGL -lGLU
+CPP   = g++ -std=c++14
+FLAGS  = -O3 -lglut -lGL -lGLU -fsanitize=address
 
 MAINFILE = SCDP_ranking_new.cpp
 
