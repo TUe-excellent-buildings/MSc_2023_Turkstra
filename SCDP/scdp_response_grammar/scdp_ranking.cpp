@@ -270,16 +270,17 @@ int main(int argc, char* argv[])
 	std::vector<spatial_design::sc_building> scDesigns;
 	std::vector<structural_design::sd_model> sdModels;
 
-	bso::structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
-	bso::structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
-	bso::structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
-	bso::structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
+	structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
+	structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
+	structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
+	structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
+	
 	// LOOP
     for (unsigned int i = 0; i <= iterations; ++i)
     {
         out("Iteration: ",false,false,verbose); out(i,true,false,verbose);
 
-        // Generate SD model and evaluate the model
+        // GENERATE SD MODEL AND EVALUATE MODEL
         spatial_design::cf_building cf(msDesigns.back(), 1e-6);
         out("Initialized conformal model", true, true, verbose);
 
@@ -289,15 +290,19 @@ int main(int argc, char* argv[])
         sdModels.push_back(grm.sd_grammar<grammar::DESIGN_HORIZONTAL>(std::string("settings/sd_settings.txt"),etaBend,etaAx,etaShear,etaNoise,etaConverge,checkingOrder,trussStructure,beamStructure,flatShellStructure,substituteStructure));
 		out("Generated structural model",true,true,verbose);
 
+        visualization::visualize(msDesigns.back(),"","ms_building",4.0);
+		visualization::visualize(cf,"cuboid");
+        visualization::visualize(sdModels.back());
+
         sdModels.back().analyze();
         out("Evaluated structural model: ", false, false, verbose);
         double sdResult = sdModels.back().getTotalResults().mTotalStrainEnergy;
         out(sdResult, true, true, verbose);
 
-        // Create a new MS model
+        // CREATE A NEW MS MODEL
         spatial_design::ms_building newMS = msDesigns.back();
 
-        // Get performances per space
+        // GET PERFORMANCES PER SPACE
         std::vector<std::pair<double, spatial_design::ms_space*>> spacePerformances;
         for (const auto& space : newMS.getSpacePtrs())
         {
@@ -307,17 +312,17 @@ int main(int argc, char* argv[])
             spacePerformances.push_back({spacePerformance, space});
         }
 
-        // Sort spaces based on their performance
-        std::sort(spacePerformances.rbegin(), spacePerformances.rend());
+        // SORT SPACES FROM WORST TO BEST (LOW STRAIN ENERGY TO HIGH STRAIN ENERGY)
+        std::sort(spacePerformances.begin(), spacePerformances.end());
 
-        // Output the ranked performances
+        // OUTPUT RANKED PERFORMANCES PER SPACE
         std::cout << "Ranked Performances:\n";
         for (const auto& performance : spacePerformances) {
             auto id = performance.second->getID();
             std::cout << "ID: " << id << ", Performance: " << performance.first << std::endl;
         }
 
-        // Delete the nToDelete worst-performing spaces
+        // DELETE n WORST PERFORMING SPACES
 		for (unsigned int j = 0; j < nSpacesDelete && j < spacePerformances.size(); ++j)
 		{
 			newMS.deleteSpace(*(spacePerformances[j].second));
@@ -325,7 +330,7 @@ int main(int argc, char* argv[])
         newMS.setZZero();
 
         std::vector<spatial_design::ms_space*> floatingSpaces;
-        if (newMS.hasFloatingSpaces(floatingSpaces)) 
+        if (newMS.hasFloatingSpaces(floatingSpaces))
 		{
              for (auto& i : floatingSpaces) newMS.deleteSpace(i);
         }
@@ -333,52 +338,41 @@ int main(int argc, char* argv[])
 
         msDesignsTemp.push_back(newMS);
 
-		// Scale and split spaces to recover initial conditions
-		// scale the dimensions in x and y direction
+		// SCALE TO RECOVER INITIAL FLOOR AREA
 		double scaleFactor = sqrt(floorArea / newMS.getFloorArea());
 		newMS.scale({{0,scaleFactor},{1,scaleFactor}});
 		newMS.snapOn({{0,1},{1,1}});
 
-		// split the spaces with the largest dimension in x or y direction (checking x first)
-		while (newMS.getSpacePtrs().size() < nSpaces)
-		{
-			auto spaceWithLargestDimension = newMS.getSpacePtrs().front();
-			std::pair<unsigned int, double> largestDimension;
-			largestDimension.first = 0;
-			largestDimension.second = spaceWithLargestDimension->getDimensions()(0);
-			bool firstCheck = true;
-			for (const auto& j : newMS.getSpacePtrs())
-			{
-				for (unsigned int k = 0; k < 3; ++k)
-				{
-					double dimension = j->getDimensions()(k);
-					if (k == 2 && dimension < 6000) continue;
-					if (largestDimension.second < dimension || firstCheck)
-					{
-						largestDimension.first = k;
-						largestDimension.second = dimension;
-						spaceWithLargestDimension = j;
-						firstCheck = false;
-					}
-					else if (largestDimension.second == dimension)
-					{ // if they both are the largest, check which one has a smaller z-coordinate
-						if (spaceWithLargestDimension->getCoordinates()(2) > j->getCoordinates()(2))
-						{
-							spaceWithLargestDimension = j;
-							largestDimension.first = k;
-						}
-					}
-				}
-			}
-			newMS.splitSpace(spaceWithLargestDimension,{{largestDimension.first,2}});
-		}
-		// newMS.snapOn({{2,3000}});
-		// scaleFactor = sqrt(floorArea / newMS.getFloorArea());
-		// newMS.scale({{0,scaleFactor},{1,scaleFactor}});
+        // EXCLUDE ALREADY SPLIT SPACES
+        auto removeSpacesIterator = std::remove_if(spacePerformances.begin(), spacePerformances.end(),
+            [nSpaces](const auto& spacePerformance) {
+                return spacePerformance.second->getID() > nSpaces;
+            }
+        );
+        spacePerformances.erase(removeSpacesIterator, spacePerformances.end());
+
+        // SPLIT n BEST PERFORMING SPACES
+        for (unsigned int j = spacePerformances.size() - 1; j >= spacePerformances.size() - nSpacesDelete && j < spacePerformances.size(); --j) {
+            auto spaceWithLowScore = spacePerformances[j].second;
+            // FIND THE LARGEST DIMENSION
+            double largestDimension = -1.0; // Initialize with a small value
+            unsigned int largestDimensionIndex = 0;
+            for (unsigned int k = 0; k < 3; ++k) {
+                double dimension = spaceWithLowScore->getDimensions()(k);
+                if (dimension > largestDimension) {
+                    largestDimension = dimension;
+                    largestDimensionIndex = k;
+                }
+            }
+
+            // SPLIT THE SPACE ALONG ITS LARGEST DIMENSION
+            newMS.splitSpace(spaceWithLowScore, {{largestDimensionIndex, 2}});
+        }
+
 		newMS.snapOn({{0,100},{1,100},{2,100}});
 		out("Split spaces to restore number of spaces",true,true,verbose);
 
-		// in case the lower spaces were removed reset minimum z coordinate to Z
+		// IN CASE THE LOWER SPACES WERE REMOVED RESET MINIMUM Z COORDINATE TO Z
 		newMS.setZZero();
 		out("Scaled design to initial volume",true,true,verbose);
 
@@ -387,16 +381,8 @@ int main(int argc, char* argv[])
     }
     out("Finished SCDP process", true, true, verbose);
 
-
-	std::cout << "Number of designs: " << msDesigns.size() << std::endl;
+	// INITIALIZE VISUALIZATION
 	visualization::initVisualization(argc,argv);
-	std::cout << "Visualizing initialized!" << std::endl;
-	for(int i = 0; i < msDesigns.size(); i++)
-	{
-		std::cout << "Visualizing design " << i << std::endl;
-		visualization::visualize(msDesigns[i],"","ms_building",4.0);
-	}
-	std::cout << "Visualizing finished!" << std::endl;
 	visualization::endVisualization();
 
 	return 0;
