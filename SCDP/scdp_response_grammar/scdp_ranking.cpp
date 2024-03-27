@@ -274,7 +274,7 @@ int main(int argc, char* argv[])
 	structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
 	structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
 	structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
-	
+
 	// LOOP
     for (unsigned int i = 0; i <= iterations; ++i)
     {
@@ -313,28 +313,25 @@ int main(int argc, char* argv[])
         }
 
         // SORT SPACES FROM WORST TO BEST (LOW STRAIN ENERGY TO HIGH STRAIN ENERGY)
-        std::sort(spacePerformances.begin(), spacePerformances.end());
+        std::sort(spacePerformances.rbegin(), spacePerformances.rend());
 
         // OUTPUT RANKED PERFORMANCES PER SPACE
         std::cout << "Ranked Performances:\n";
+        int rank = 1;
         for (const auto& performance : spacePerformances) {
             auto id = performance.second->getID();
-            std::cout << "ID: " << id << ", Performance: " << performance.first << std::endl;
+            std::cout << rank << ", Space ID: " << id << ", Performance: " << performance.first << std::endl;
+            rank++;
         }
 
+
         // DELETE n WORST PERFORMING SPACES
-		for (unsigned int j = 0; j < nSpacesDelete && j < spacePerformances.size(); ++j)
+		//for (unsigned int j = 0; j < nSpacesDelete && j < spacePerformances.size(); ++j)
+        for (unsigned int j = spacePerformances.size() - 1; j >= spacePerformances.size() - nSpacesDelete && j < spacePerformances.size(); --j)
 		{
 			newMS.deleteSpace(*(spacePerformances[j].second));
 		}
         newMS.setZZero();
-
-        std::vector<spatial_design::ms_space*> floatingSpaces;
-        if (newMS.hasFloatingSpaces(floatingSpaces))
-		{
-             for (auto& i : floatingSpaces) newMS.deleteSpace(i);
-        }
-		out("Removed worst performing spaces",true,true,verbose);
 
         msDesignsTemp.push_back(newMS);
 
@@ -352,7 +349,9 @@ int main(int argc, char* argv[])
         spacePerformances.erase(removeSpacesIterator, spacePerformances.end());
 
         // SPLIT n BEST PERFORMING SPACES
-        for (unsigned int j = spacePerformances.size() - 1; j >= spacePerformances.size() - nSpacesDelete && j < spacePerformances.size(); --j) {
+        //for (unsigned int j = spacePerformances.size() - 1; j >= spacePerformances.size() - nSpacesDelete && j < spacePerformances.size(); --j)
+        for (unsigned int j = 0; j < nSpacesDelete && j < spacePerformances.size(); ++j)
+        {
             auto spaceWithLowScore = spacePerformances[j].second;
             // FIND THE LARGEST DIMENSION
             double largestDimension = -1.0; // Initialize with a small value
