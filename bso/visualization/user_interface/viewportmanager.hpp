@@ -37,6 +37,8 @@ namespace bso { namespace visualization
                          unsigned int time);
         bool key_event(int key, int time);
 
+        void clearviewports();
+
     private:
         int winwidth,
             winheight;
@@ -86,6 +88,11 @@ namespace bso { namespace visualization
             }
             update_viewport_sizes();
         }
+    }
+
+    void viewportmanager::clearviewports()
+    {
+        viewports.clear();
     }
 
     /*

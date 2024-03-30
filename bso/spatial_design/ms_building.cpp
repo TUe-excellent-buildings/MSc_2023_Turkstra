@@ -238,6 +238,24 @@ unsigned int ms_building::getLastSpaceID() const
 	return mLastSpaceID;
 } // getLastSpaceID()
 
+unsigned int ms_building::getSpaceLocation(int space)
+{
+	int counter = 0;
+	for (auto i : mSpaces)
+	{
+		std::cout << i->getID() << ", " << space << std::endl;
+		if (int(space) == int(i->getID())) return counter;
+		counter++;
+	}
+	
+	// if this part of code is reached, the space was not found in the preceding for loop
+	std::stringstream errorMessage;
+	errorMessage << "Could not find the following space in an MS building spatial design:" << std::endl
+							 << space << std::endl
+							 << "(bso/spatial_design/ms_building.cpp). " << std::endl;
+	throw std::runtime_error(errorMessage.str());
+} // getSpaceLocation()
+
 double ms_building::getVolume() const
 {
 	double volume = 0;
@@ -330,19 +348,7 @@ void ms_building::addSpace(const ms_space& space)
 void ms_building::deleteSpace(ms_space* spacePtr)
 {
 	if (std::find(mSpaces.begin(), mSpaces.end(), spacePtr) == mSpaces.end()) spacePtr = getSpacePtr(spacePtr);
-	try
-	{
-		mSpaces.erase(std::remove(mSpaces.begin(), mSpaces.end(), spacePtr), mSpaces.end());
-	}
-	catch(std::exception& e)
-	{
-		std::stringstream errorMessage;
-		errorMessage << "Could not delete the following space from an MS building spatial design: " << std::endl
-								 << *spacePtr << std::endl
-								 << "(bso/spatial_design/ms_building.cpp). Got the following error message: " << std::endl
-								 << e.what() << std::endl;
-		throw std::invalid_argument(errorMessage.str());
-	}
+	mSpaces.erase(std::remove(mSpaces.begin(), mSpaces.end(), spacePtr), mSpaces.end());
 } // deleteSpace()
 
 void ms_building::deleteSpace(ms_space& space)

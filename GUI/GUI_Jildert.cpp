@@ -100,10 +100,11 @@ void introScreen();
 bool checkIfRemovePossible();
 bool checkIfSplitPossible();
 void splitSpaceScreen();
+std::string clean_str(const std::string& input);
 
-void visualise(bso::spatial_design::ms_building& ms_building)
+void visualise(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "ms_building", const double& lineWidth = 1.0)
 {
-    vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms_building)));
+    vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms, type, title,lineWidth)));
 }
 
 void visualise(const bso::spatial_design::cf_building& cf, std::string type, std::string title = "sc_building")
@@ -122,12 +123,24 @@ void buttonClicked(int variable) {
     std::cout << "Button clicked: " << variable << std::endl;
 }
 
+std::string clean_str(const std::string& input) {
+    std::string result;
+    for (char ch : input) {
+        if (isdigit(ch)) {
+            result += ch;
+        }
+    }
+    return result;
+}
+
 void removeSpace(int screen) {
-    int space_to_delete = int(spaceTF.text[0]) - 48;
+    int space_to_delete;
+    if(spaceTF.text.empty() && !checkIfRemovePossible()) space_to_delete = -1;
+    else space_to_delete = std::stoi(clean_str(spaceTF.text));
     std::cout << "Space to delete: " << space_to_delete << std::endl;
     std::cout << "Space to delete: " << MS.getSpacePtrs().size() << std::endl;
-    if(space_to_delete < MS.getSpacePtrs().size()) {
-        MS.deleteSpace(MS.getSpacePtr(MS.getSpacePtrs()[space_to_delete]));
+    if(space_to_delete <= MS.getLastSpaceID()) {
+        MS.deleteSpace(MS.getSpacePtr(MS.getSpacePtrs()[MS.getSpaceLocation(space_to_delete)]));
         std::cout<< "Space deleted: " << space_to_delete << std::endl;
         removed_space_counter++;
     } else {
@@ -141,6 +154,7 @@ void removeSpace(int screen) {
     if(screen  <= 4) {
         // visualise(MS);
         visualise(MS);
+        // visualise(CF, "rectangles");
         // visualise(SD_Building, 1);
         visualizationActive = true;
     } else {
@@ -151,13 +165,15 @@ void removeSpace(int screen) {
 }
 
 void splitSpace(int screen) {
-    int space_to_split = int(splitTF.text[0]) - 48;
+    int space_to_split;
+    if(splitTF.text.empty() && !checkIfRemovePossible()) space_to_split = -1;
+    else space_to_split = std::stoi(clean_str(splitTF.text));
     std::cout << "Space to split: " << space_to_split << std::endl;
     std::cout << "Space to split: " << MS.getSpacePtrs().size() << std::endl;
-    if(space_to_split < MS.getSpacePtrs().size()) {
-        MS.splitSpace(MS.getSpacePtr(MS.getSpacePtrs()[space_to_split]));
+    if(space_to_split <= MS.getLastSpaceID()) {
+        MS.splitSpace(MS.getSpacePtr(MS.getSpacePtrs()[MS.getSpaceLocation(space_to_split)]));
         std::cout<< "Space split: " << space_to_split << std::endl;
-        space_to_split++;
+        split_space_counter++;
     } else {
         std::cout << "Space does not exist" << std::endl;
     }
@@ -169,6 +185,7 @@ void splitSpace(int screen) {
     if(screen  <= 4) {
         // visualise(MS);
         visualise(MS);
+        //visualise(CF, "rectangles");
         // visualise(SD_Building, 1);
         visualizationActive = true;
     } else {
@@ -181,12 +198,15 @@ void splitSpace(int screen) {
 void changeScreen(int screen) {
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 3) {
+    if(screen  <= 4) {
+        vpmanager_local.clearviewports();
         // visualise(MS);
         visualise(MS);
+        //visualise(CF, "rectangles");
         // visualise(SD_Building, 1);
         visualizationActive = true;
     } else {
+        vpmanager_local.clearviewports();
         visualizationActive = false;
     }
     glutPostRedisplay();
@@ -250,8 +270,6 @@ void display() {
         case 3: screen3(); break;
         case 4: splitSpaceScreen(); break;
         case 5: screen4(); break;
-        // Ensure you have a default case, even if it does nothing,
-        // to handle any unexpected values of currentScreen
         default: break;
     }
 
@@ -736,7 +754,7 @@ void splitSpaceScreen() {
     glVertex2f(1400.0f, screenHeight);
     glEnd();
 
-    std::string removed_text = std::to_string(removed_space_counter) + "/2";
+    std::string removed_text = std::to_string(split_space_counter) + "/2";
     const char* cStyleString = removed_text.c_str();
 
     drawText(cStyleString, 1850, 950, 250);

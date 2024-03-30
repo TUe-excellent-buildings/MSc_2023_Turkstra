@@ -27,6 +27,7 @@ public:
 	ms_space* getSpacePtr(const ms_space& space) const;
 	ms_space* getSpacePtr(const ms_space* spacePtr) const; // the spacePtr that was passed may belong to another instance of ms_building
 	unsigned int getLastSpaceID() const;
+	unsigned int getSpaceLocation(int space);
 	double getVolume() const;
 	double getFloorArea() const;
 	
