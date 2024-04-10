@@ -13,7 +13,7 @@
 bso::spatial_design::ms_building MS("../SCDP/designs/design_4");
 bso::spatial_design::cf_building CF(MS);
 
-bool visualizationActive = true; // Flag to control when to activate visualization
+bool visualizationActive = true;
 bso::visualization::viewportmanager vpmanager_local;
 bso::visualization::orbitalcamera   cam_local;
 int prevx, prevy;
@@ -78,6 +78,11 @@ const float MARGIN_PERCENT = 5.0f; // Margin as a percentage of the window width
 int removed_space_counter = 0;
 int split_space_counter = 0;
 
+// Vector of rectangles
+std::vector<bso::utilities::geometry::polygon*> rectanglesGeometry;
+std::vector<int> rectanglesSpaces;
+std::vector<int> rectanglesInternalIDs;
+
 // Function prototypes
 void display();
 void keyboard(unsigned char key, int x, int y);
@@ -93,13 +98,14 @@ void drawUndoRedoButtons();
 void drawTextField(int x, int y, int width, int height, TextField& textfield);
 void onMouseClick(int button, int state, int x, int y);
 void drawBuilding();
-void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, const std::vector<std::string>& column2);
+void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1);
 void setup2D();
 void setup3D();
 void introScreen();
 bool checkIfRemovePossible();
 bool checkIfSplitPossible();
 void splitSpaceScreen();
+void rectangleSelectionScreen();
 std::string clean_str(const std::string& input);
 
 void visualise(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "ms_building", const double& lineWidth = 1.0)
@@ -151,7 +157,7 @@ void removeSpace(int screen) {
 
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 4) {
+    if(screen  <= 5) {
         // visualise(MS);
         visualise(MS);
         // visualise(CF, "rectangles");
@@ -182,7 +188,7 @@ void splitSpace(int screen) {
 
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 4) {
+    if(screen  <= 5) {
         // visualise(MS);
         visualise(MS);
         //visualise(CF, "rectangles");
@@ -198,7 +204,7 @@ void splitSpace(int screen) {
 void changeScreen(int screen) {
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 4) {
+    if(screen  <= 5) {
         vpmanager_local.clearviewports();
         // visualise(MS);
         visualise(MS);
@@ -267,9 +273,10 @@ void display() {
         case 0: introScreen(); break;
         case 1: mainScreen(); break;
         case 2: assignmentDescriptionScreen(); break;
-        case 3: screen3(); break;
-        case 4: splitSpaceScreen(); break;
-        case 5: screen4(); break;
+        case 3: rectangleSelectionScreen(); break;
+        case 4: screen3(); break;
+        case 5: splitSpaceScreen(); break;
+        case 6: screen4(); break;
         default: break;
     }
 
@@ -290,6 +297,7 @@ void setup2D() {
     gluOrtho2D(0.0, screenWidth, 0.0, screenHeight);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    glDisable(GL_DEPTH_TEST);
     
     // Disable lighting for 2D
     glDisable(GL_LIGHTING);
@@ -470,6 +478,31 @@ void drawButton(const char *text, float x, float y, float width, float height, B
     buttons.push_back(button);
 }
 
+void handleCellClick(int clickedRow, int clickedColumn) {
+    int space = clickedRow / 4;
+    bso::structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
+	bso::structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
+	bso::structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
+    
+    for (int i = 0; i < rectanglesGeometry.size(); i++) {
+        if (rectanglesSpaces[i] == space) {
+            rectanglesGeometry[i]->clearStructures();
+        }
+    }
+    
+    std::cout << "Cell clicked" << clickedRow << clickedColumn << std::endl;
+    if(clickedColumn == 1) {
+        rectanglesGeometry[clickedRow]->addStructure(trussStructure);
+        std::cout << "Truss structure added to rectangle " << clickedRow << std::endl;
+    } else if(clickedColumn == 2) {
+        rectanglesGeometry[clickedRow]->addStructure(beamStructure);
+        std::cout << "Beam structure added to rectangle " << clickedRow << std::endl;
+    } else if(clickedColumn == 3) {
+        rectanglesGeometry[clickedRow]->addStructure(flatShellStructure);
+        std::cout << "Flat shell structure added to rectangle " << clickedRow << std::endl;
+    }
+}
+
 void onMouseClick(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
         float mouseY = screenHeight - static_cast<float>(y);
@@ -484,6 +517,23 @@ void onMouseClick(int button, int state, int x, int y) {
                 }
                 break;
             }
+        }
+
+        if(currentScreen == 3) {
+            int x = 1450;
+            int y = 150;
+            int width = 300;
+            int cellHeight = 20;
+            int numRows = 28;
+            int columnWidth = width / 4;
+
+            int clickedRow = (y + numRows * cellHeight - mouseY) / cellHeight;
+            int clickedColumn = (mouseX - x) / columnWidth;
+
+            if (clickedRow >= 0 && clickedRow < numRows && clickedColumn >= 0 && clickedColumn < 4) {
+                handleCellClick(clickedRow, clickedColumn);
+            }
+
         }
     }
 }
@@ -602,9 +652,14 @@ void drawUndoRedoButtons() {
     drawButton("Reset", 10, screenHeight - 120, 110, 50, buttonClicked, 1);
 }
 
-void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, const std::vector<std::string>& column2) {
-    // Calculate the number of rows based on the data in the columns
-    size_t numRows = std::max(column1.size(), column2.size());
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <GL/glut.h> // Ensure you have the GLUT library installed
+
+void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1) {
+    // Calculate the number of rows based on the data in the first column
+    size_t numRows = column1.size();
 
     // Calculate the height of the table based on the number of rows and cell height
     int tableHeight = numRows * cellHeight;
@@ -612,10 +667,9 @@ void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vect
     // Set the color for cell borders and text
     glColor3f(0.0, 0.0, 0.0); // Black color for borders and text
 
-    // Draw cell borders and content for column 1
+    // Draw cell borders and content for each column
     int currentY = y + tableHeight;
-    int column1Width = width / 2;
-    int column2X = x + column1Width;
+    int columnWidth = width / 4; // Now the width is divided by 4, for 4 columns
 
     for (size_t i = 0; i < numRows; ++i) {
         // Draw horizontal cell border
@@ -624,38 +678,49 @@ void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vect
         glVertex2f(x + width, currentY);
         glEnd();
 
-        // Draw content for column 1
-        if (i < column1.size()) {
-            glRasterPos2f(x + 5, currentY - cellHeight / 2); // Add padding for text
-            for (char c : column1[i]) {
-                glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+        for (int col = 0; col < 4; ++col) {
+            // Calculate X position for the column
+            int columnX = x + col * columnWidth;
+
+            // Draw vertical cell border for all columns except the first
+            if (col > 0) {
+                glBegin(GL_LINES);
+                glVertex2f(columnX, currentY);
+                glVertex2f(columnX, y);
+                glEnd();
             }
-        }
 
-        currentY -= cellHeight;
-    }
-
-    // Draw cell borders and content for column 2
-    currentY = y + tableHeight;
-
-    for (size_t i = 0; i < numRows; ++i) {
-        // Draw vertical cell border
-        glBegin(GL_LINES);
-        glVertex2f(column2X, currentY);
-        glVertex2f(column2X, y);
-        glEnd();
-
-        // Draw content for column 2
-        if (i < column2.size()) {
-            glRasterPos2f(column2X + 5, currentY - cellHeight / 2); // Add padding for text
-            for (char c : column2[i]) {
-                glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+            // For simplicity, we replicate the content of column1 in the other columns
+            // Adjust this logic to change how content for columns 2, 3, and 4 is generated
+            if (i < column1.size()) {
+                if(col == 0) {
+                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2); // Add padding for text
+                    for (char c : column1[i]) {
+                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+                    }
+                } else if(col == 1) {
+                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2); // Add padding for text
+                    for (char c : "beam") {
+                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+                    }
+                } else if(col == 2) {
+                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2); // Add padding for text
+                    for (char c : "truss") {
+                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+                    }
+                } else {
+                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2); // Add padding for text
+                    for (char c : "flat_shell") {
+                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+                    }
+                }
             }
         }
 
         currentY -= cellHeight;
     }
 }
+
 
 void introScreen() {
     drawText("Hello and welcome to this MSc project by Jildert Turkstra. We are glad to have you here and hope you will have a nice experience. In case of any problems, be sure to contact Jildert via email: j.turkstra@student.tue.nl. Please select the Assignment number:",
@@ -705,13 +770,54 @@ void assignmentDescriptionScreen() {
     drawText("Box structure", 1480, 600, 100);
     drawText("Table structure", 1670, 600, 100);
 
-    drawTwoColumnTable(1450, 300, 300, 30, {"Space ID", "1", "2", "3", "4", "5"}, {"Structural element", "Box", "Table", "Box", "Table", "Table"});
-
     drawText("Once you are finished, please continue below.", 1580, 200, 300);
 
 
     // Draw the "Next step" button in the bottom right corner
     drawButton("View structural design", 1520, 50, 200, 50, changeScreen, 3);
+}
+
+void rectangleSelectionScreen() {
+    glColor3f(0.0, 0.0, 0.0);
+    glBegin(GL_LINES);
+    glVertex2f(1400.0f, 0.0f);
+    glVertex2f(1400.0f, screenHeight);
+    glEnd();
+
+    std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F"};
+
+    std::vector<std::string> rectangles;
+
+    std::set<bso::utilities::geometry::vertex> createdLabels;
+	
+	for (const auto& i : MS)
+	{
+        std::string rectangle;
+	
+		bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
+        
+		
+        for(int j = 0; j < 4; ++j)
+        {
+            rectangle = std::to_string(i->getID()) + surfaceLetters[j];
+            auto tempSurface = spaceGeometry.getPolygons()[j];
+            auto surfaceCenter = tempSurface->getCenter();
+            if(createdLabels.find(surfaceCenter) == createdLabels.end())
+            {
+                rectangles.push_back(rectangle);
+                createdLabels.insert(surfaceCenter);
+            }
+            rectangle = "";
+
+            rectanglesGeometry.push_back(spaceGeometry.getPolygons()[j]);
+        }
+    }
+
+    drawFourColumnTable(1450, 150, 300, 20, rectangles);
+
+
+    // Draw the "Next step" button in the bottom right corner
+    drawButton("View structural design", 1520, 50, 200, 50, changeScreen, 4);
 }
 
 void screen3() {
@@ -739,7 +845,7 @@ void screen3() {
 
     // Draw the "Next step" button in the bottom right corner
     if(checkIfRemovePossible()) {
-        drawButton("Remove another space", 1520, 50, 200, 50, removeSpace, 3);
+        drawButton("Remove another space", 1520, 50, 200, 50, removeSpace, 4);
     } else {
         drawButton("View new spatial design", 1450, 50, 300, 50, removeSpace, 4);
     }
@@ -768,9 +874,9 @@ void splitSpaceScreen() {
 
     // Draw the "Next step" button in the bottom right corner
     if(checkIfSplitPossible()) {
-        drawButton("Split another space", 1520, 50, 200, 50, splitSpace, 4);
+        drawButton("Split another space", 1520, 50, 200, 50, splitSpace, 5);
     } else {
-        drawButton("View new spatial design", 1450, 50, 300, 50, splitSpace, 5);
+        drawButton("View new spatial design", 1450, 50, 300, 50, splitSpace, 6);
     }
 }
 

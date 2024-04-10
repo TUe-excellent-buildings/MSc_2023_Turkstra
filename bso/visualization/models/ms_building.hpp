@@ -14,6 +14,7 @@
 #endif // BP_MODEL_HPP
 
 #include <bitset>
+#include <set>
 
 namespace bso { namespace visualization
 {
@@ -24,6 +25,7 @@ private:
 	std::string mTitle;
 	std::list<polygon*> polygons;
 	std::list<label*>   labels;
+	std::set<utilities::geometry::vertex> createdLabels;
 
 	polygon_props  pprops;
 	polygon_props  ppropsSurfaceType; // NEW
@@ -61,6 +63,8 @@ MS_Model::MS_Model(const spatial_design::ms_building& ms,
 	ppropsSurfaceType.shininess = 60.0;
 	ppropsSurfaceType.translucent = true;
 	ppropsSurfaceType.twosided = true;
+
+	std::vector<std::string> surfaceLetters = {"A", "B", "C", "D"};
 	
 	for (const auto& i : ms)
 	{
@@ -68,12 +72,26 @@ MS_Model::MS_Model(const spatial_design::ms_building& ms,
 	
 		geom::quad_hexahedron spaceGeometry = i->getGeometry();
 		std::stringstream centerLabel;
+		std::stringstream centerLabelSide;
 		centerLabel << i->getID();
 		
 		if (type == "spaces" || type == "" )
 		{
 			this->addPolyhedron(polygons, &spaceGeometry, &pprops, &lprops);
 			if (type == "") centerLabel.str(std::string());
+
+			for(int j = 0; j < 4; ++j)
+			{
+				centerLabelSide << i->getID() << surfaceLetters[j];
+				auto tempSurface = spaceGeometry.getPolygons()[j];
+				auto surfaceCenter = tempSurface->getCenter();
+				if(createdLabels.find(surfaceCenter) == createdLabels.end())
+				{
+					this->addLabel(labels,&lbprops,centerLabelSide.str(), surfaceCenter);
+					createdLabels.insert(surfaceCenter);
+				}
+				centerLabelSide.str(std::string());
+			}
 		}
 		else if (type == "surface_type")
 		{
@@ -129,7 +147,7 @@ MS_Model::MS_Model(const spatial_design::ms_building& ms,
 			throw std::runtime_error(errorMessage.str());
 		}
 		
-		this->addLabel(labels,&lbprops,centerLabel.str(),spaceGeometry.getCenter());
+		// this->addLabel(labels,&lbprops,centerLabel.str(),spaceGeometry.getCenter());
 	}
 
 	pbsp = new random_bsp(polygons);
