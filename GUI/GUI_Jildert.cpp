@@ -9,9 +9,7 @@
 #include <bso/building_physics/bp_model.hpp>
 #include <bso/grammar/grammar.hpp>
 #include <bso/visualization/visualization.hpp>
-
-bso::spatial_design::ms_building MS("../SCDP/designs/design_4");
-bso::spatial_design::cf_building CF(MS);
+#include <bso/grammar/sd_grammars/design_horizontal.cpp>
 
 bool visualizationActive = true;
 bso::visualization::viewportmanager vpmanager_local;
@@ -19,6 +17,22 @@ bso::visualization::orbitalcamera   cam_local;
 int prevx, prevy;
 
 typedef void (*ButtonCallback)(int);
+
+bso::structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
+bso::structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
+bso::structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
+bso::structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
+double etaBend = 0.1;
+double etaAx = 0.1;
+double etaShear = 0.1;
+double etaNoise = 0.1;
+int etaConverge = 1;
+std::string checkingOrder = "321";
+
+bso::spatial_design::ms_building MS("../SCDP/designs/design_4");
+bso::spatial_design::cf_building CF(MS);
+bso::grammar::grammar grm(CF);
+bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_HORIZONTAL>(std::string("settings/sd_settings.txt"),etaBend,etaAx,etaShear,etaNoise,etaConverge,checkingOrder,trussStructure,beamStructure,flatShellStructure,substituteStructure);
 
 struct Button {
     float x, y, width, height;
@@ -118,6 +132,14 @@ void visualise(const bso::spatial_design::cf_building& cf, std::string type, std
 	vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::Conformal_Model(cf, type, title)));
 }
 
+void visualise(const bso::structural_design::sd_model& sd, const std::string& type ="component",
+							 const std::string& title ="sd_model", const bool& ghostly = false,
+							 const std::vector<std::pair<bso::utilities::geometry::vertex,
+							 bso::utilities::geometry::vector>>& cuttingPlanes = {})
+{
+	vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::SD_Model(sd, type, title, ghostly, cuttingPlanes)));
+}
+
 void checkGLError(const char* action) {
     GLenum err;
     while ((err = glGetError()) != GL_NO_ERROR) {
@@ -157,13 +179,18 @@ void removeSpace(int screen) {
 
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 5) {
+    if(screen  <= 5 && screen != 3) {
+        vpmanager_local.clearviewports();
         // visualise(MS);
         visualise(MS);
-        // visualise(CF, "rectangles");
+        //visualise(CF, "rectangles");
         // visualise(SD_Building, 1);
         visualizationActive = true;
+    } else if(screen == 3) {
+        vpmanager_local.clearviewports();
+        visualise(SD_model);
     } else {
+        vpmanager_local.clearviewports();
         visualizationActive = false;
     }
     glutPostRedisplay();
@@ -188,13 +215,18 @@ void splitSpace(int screen) {
 
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 5) {
+    if(screen  <= 5 && screen != 3) {
+        vpmanager_local.clearviewports();
         // visualise(MS);
         visualise(MS);
         //visualise(CF, "rectangles");
         // visualise(SD_Building, 1);
         visualizationActive = true;
+    } else if(screen == 3) {
+        vpmanager_local.clearviewports();
+        visualise(SD_model);
     } else {
+        vpmanager_local.clearviewports();
         visualizationActive = false;
     }
     glutPostRedisplay();
@@ -204,13 +236,16 @@ void splitSpace(int screen) {
 void changeScreen(int screen) {
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 5) {
+    if(screen  <= 5 && screen != 3) {
         vpmanager_local.clearviewports();
         // visualise(MS);
         visualise(MS);
         //visualise(CF, "rectangles");
         // visualise(SD_Building, 1);
         visualizationActive = true;
+    } else if(screen == 3) {
+        vpmanager_local.clearviewports();
+        visualise(SD_model);
     } else {
         vpmanager_local.clearviewports();
         visualizationActive = false;
@@ -478,27 +513,32 @@ void drawButton(const char *text, float x, float y, float width, float height, B
     buttons.push_back(button);
 }
 
-void handleCellClick(int clickedRow, int clickedColumn) {
-    int space = clickedRow / 4;
-    bso::structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
-	bso::structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
-	bso::structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
-    
-    for (int i = 0; i < rectanglesGeometry.size(); i++) {
-        if (rectanglesSpaces[i] == space) {
-            rectanglesGeometry[i]->clearStructures();
+std::vector<bso::structural_design::component::geometry*> cleanGeometry(std::vector<bso::structural_design::component::geometry*> allgeoms) {
+    std::vector<bso::structural_design::component::geometry*> rectgeoms;
+    for (int i = 0; i < allgeoms.size(); i++) {
+        if (allgeoms[i]->isQuadrilateral()) {
+            rectgeoms.push_back(allgeoms[i]);
         }
     }
-    
+    return rectgeoms;
+}
+
+void handleCellClick(int clickedRow, int clickedColumn) {
+    int space = clickedRow / 4;
+
+    std::vector<bso::structural_design::component::geometry*> allgeoms = SD_model.getGeometries();
+    std::vector<bso::structural_design::component::geometry*> rectgeoms = cleanGeometry(allgeoms);
+
     std::cout << "Cell clicked" << clickedRow << clickedColumn << std::endl;
+
     if(clickedColumn == 1) {
-        rectanglesGeometry[clickedRow]->addStructure(trussStructure);
+        rectgeoms[clickedRow]->addStructure(trussStructure);
         std::cout << "Truss structure added to rectangle " << clickedRow << std::endl;
     } else if(clickedColumn == 2) {
-        rectanglesGeometry[clickedRow]->addStructure(beamStructure);
+        rectgeoms[clickedRow]->addStructure(beamStructure);
         std::cout << "Beam structure added to rectangle " << clickedRow << std::endl;
     } else if(clickedColumn == 3) {
-        rectanglesGeometry[clickedRow]->addStructure(flatShellStructure);
+        rectgeoms[clickedRow]->addStructure(flatShellStructure);
         std::cout << "Flat shell structure added to rectangle " << clickedRow << std::endl;
     }
 }
