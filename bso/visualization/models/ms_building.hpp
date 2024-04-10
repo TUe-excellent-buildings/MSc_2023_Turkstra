@@ -147,7 +147,7 @@ MS_Model::MS_Model(const spatial_design::ms_building& ms,
 			throw std::runtime_error(errorMessage.str());
 		}
 		
-		// this->addLabel(labels,&lbprops,centerLabel.str(),spaceGeometry.getCenter());
+		this->addLabel(labels,&lbprops,centerLabel.str(),spaceGeometry.getCenter());
 	}
 
 	pbsp = new random_bsp(polygons);

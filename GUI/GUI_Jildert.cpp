@@ -2,7 +2,7 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
-#include <Windows.h>
+// #include <Windows.h>
 #include <fstream>
 #include <string>
 #include <chrono>
@@ -15,6 +15,7 @@
 #include <bso/building_physics/bp_model.hpp>
 #include <bso/grammar/grammar.hpp>
 #include <bso/visualization/visualization.hpp>
+#include <bso/grammar/sd_grammars/design_horizontal.cpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -22,12 +23,28 @@
 bso::spatial_design::ms_building MS("Villa");
 bso::spatial_design::cf_building CF(MS);
 
-bool visualizationActive = true; // Flag to control when to activate visualization
+bool visualizationActive = true;
 bso::visualization::viewportmanager vpmanager_local;
 bso::visualization::orbitalcamera   cam_local;
 int prevx, prevy;
 
 typedef void (*ButtonCallback)(int);
+
+bso::structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
+bso::structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
+bso::structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
+bso::structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
+double etaBend = 0.1;
+double etaAx = 0.1;
+double etaShear = 0.1;
+double etaNoise = 0.1;
+int etaConverge = 1;
+std::string checkingOrder = "321";
+
+// bso::spatial_design::ms_building MS("../SCDP/designs/design_4");
+// bso::spatial_design::cf_building CF(MS);
+bso::grammar::grammar grm(CF);
+bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_HORIZONTAL>(std::string("settings/sd_settings.txt"),etaBend,etaAx,etaShear,etaNoise,etaConverge,checkingOrder,trussStructure,beamStructure,flatShellStructure,substituteStructure);
 
 struct Button {
     float x, y, width, height;
@@ -112,6 +129,11 @@ const float MARGIN_PERCENT = 1.0f; // Margin as a percentage of the window width
 int iteration_counter = 1;
 const int max_iterations = 3; // actual iterations is 1 lower
 
+// Vector of rectangles
+std::vector<bso::utilities::geometry::polygon*> rectanglesGeometry;
+std::vector<int> rectanglesSpaces;
+std::vector<int> rectanglesInternalIDs;
+
 // Function prototypes
 void display();
 void keyboard(unsigned char key, int x, int y);
@@ -134,10 +156,14 @@ void drawUndoRedoButtons();
 void drawTextField(int x, int y, int width, int height, TextField& textfield);
 void onMouseClick(int button, int state, int x, int y);
 void drawBuilding();
-void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, const std::vector<std::string>& column2);
-void setWindowIcon(const char* iconPath);
+void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1);
+// void setWindowIcon(const char* iconPath);
 void setup2D();
 void setup3D();
+void introScreen();
+bool checkIfRemovePossible();
+bool checkIfSplitPossible();
+void splitSpaceScreen();
 std::string clean_str(const std::string& input);
 
 void visualise(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "ms_building", const double& lineWidth = 1.0)
@@ -150,17 +176,17 @@ void visualise(const bso::spatial_design::cf_building& cf, std::string type, std
 	vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::Conformal_Model(cf, type, title)));
 }
 
-void visualise_2(const bso::spatial_design::cf_building& cf, std::string type = "cuboid", std::string title = "sc_building")
-{
-	vpmanager_local.addviewport(new bso::visualization::viewport(new bso::visualization::Conformal_Model(cf, type, title)));
-}
-
-void visualize(const bso::structural_design::sd_model& sd, const std::string& type ="component",
+void visualise(const bso::structural_design::sd_model& sd, const std::string& type ="component",
 							 const std::string& title ="sd_model", const bool& ghostly = false,
 							 const std::vector<std::pair<bso::utilities::geometry::vertex,
 							 bso::utilities::geometry::vector>>& cuttingPlanes = {})
 {
 	vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::SD_Model(sd, type, title, ghostly, cuttingPlanes)));
+}
+
+void visualise_2(const bso::spatial_design::cf_building& cf, std::string type = "cuboid", std::string title = "sc_building")
+{
+	vpmanager_local.addviewport(new bso::visualization::viewport(new bso::visualization::Conformal_Model(cf, type, title)));
 }
 
 void checkGLError(const char* action) {
@@ -289,17 +315,21 @@ void changeScreen(int screen) {
     inputFieldDisabled = false;
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  != 3) {
+    if(screen  <= 2) {
         vpmanager_local.clearviewports();
         // visualise(MS);
         visualise(MS);
         //visualise(CF, "rectangles");
         // visualise(SD_Building, 1);
         visualizationActive = true;
+    } else if(screen == 3) {
+        vpmanager_local.clearviewports();
+        visualise(SD_model);
+        visualise_2(CF);
+        visualizationActive = true;
     } else {
         vpmanager_local.clearviewports();
         visualise(MS);
-        visualise_2(CF);
         visualizationActive = true;
     }
     glutPostRedisplay();
@@ -531,7 +561,7 @@ void display() {
     if (visualizationActive) {
         // Set viewport for the left half of the screen
         setup3D();
-
+        
         // Render the visualization
         vpmanager_local.render(cam_local);
         checkGLError("render");
@@ -567,7 +597,6 @@ void display() {
     glutPostRedisplay();
 }
 
-
 void setup2D() {
     glViewport(0, 0, screenWidth, screenHeight);
     glMatrixMode(GL_PROJECTION);
@@ -576,7 +605,7 @@ void setup2D() {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glDisable(GL_DEPTH_TEST);
-
+    
     // Disable lighting for 2D
     glDisable(GL_LIGHTING);
     glDisable(GL_LIGHT0);
@@ -594,7 +623,7 @@ void setup3D() {
     // Setup the projection matrix for 3D rendering
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-
+    
     // Adjust the perspective projection to match the new aspect ratio
     GLfloat aspectRatio = (GLfloat)viewportWidth / (GLfloat)viewportHeight;
     gluPerspective(45.0, aspectRatio, 0.1f, 1000.0f);
@@ -841,6 +870,36 @@ void checkTextFieldClick(TextField& textField, float mouseX, float mouseY) {
     }
 }
 
+std::vector<bso::structural_design::component::geometry*> cleanGeometry(std::vector<bso::structural_design::component::geometry*> allgeoms) {
+    std::vector<bso::structural_design::component::geometry*> rectgeoms;
+    for (int i = 0; i < allgeoms.size(); i++) {
+        if (allgeoms[i]->isQuadrilateral()) {
+            rectgeoms.push_back(allgeoms[i]);
+        }
+    }
+    return rectgeoms;
+}
+
+void handleCellClick(int clickedRow, int clickedColumn) {
+    int space = clickedRow / 4;
+
+    std::vector<bso::structural_design::component::geometry*> allgeoms = SD_model.getGeometries();
+    std::vector<bso::structural_design::component::geometry*> rectgeoms = cleanGeometry(allgeoms);
+
+    std::cout << "Cell clicked" << clickedRow << clickedColumn << std::endl;
+
+    if(clickedColumn == 1) {
+        rectgeoms[clickedRow]->addStructure(trussStructure);
+        std::cout << "Truss structure added to rectangle " << clickedRow << std::endl;
+    } else if(clickedColumn == 2) {
+        rectgeoms[clickedRow]->addStructure(beamStructure);
+        std::cout << "Beam structure added to rectangle " << clickedRow << std::endl;
+    } else if(clickedColumn == 3) {
+        rectgeoms[clickedRow]->addStructure(flatShellStructure);
+        std::cout << "Flat shell structure added to rectangle " << clickedRow << std::endl;
+    }
+}
+
 void onMouseClick(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
         float mouseY = screenHeight - static_cast<float>(y);
@@ -861,6 +920,23 @@ void onMouseClick(int button, int state, int x, int y) {
                 }
                 break;
             }
+        }
+
+        if(currentScreen == 3) {
+            int x = 1550;
+            int y = 150;
+            int width = 300;
+            int cellHeight = 20;
+            int numRows = 40;
+            int columnWidth = width / 4;
+
+            int clickedRow = (y + numRows * cellHeight - mouseY) / cellHeight;
+            int clickedColumn = (mouseX - x) / columnWidth;
+
+            if (clickedRow >= 0 && clickedRow < numRows && clickedColumn >= 0 && clickedColumn < 4) {
+                handleCellClick(clickedRow, clickedColumn);
+            }
+
         }
     }
 }
@@ -897,6 +973,7 @@ void drawTextField(int x, int y, int width, int height, TextField& textfield) {
     glColor3f(0.0, 0.0, 0.0); // black text
 
     // Implement text wrapping within the width of the text field
+    // This is a simplistic approach and might need adjustment for different font widths
     int maxWidth = adjustedWidth; // maximum width for text before wrapping
     int currentWidth = 0;
     std::string line;
@@ -928,7 +1005,7 @@ void drawTextField(int x, int y, int width, int height, TextField& textfield) {
         int currentY = startY - i * lineHeight; // Calculate the Y coordinate for this line
         glRasterPos2f(x + borderWidth, currentY); // Adjust for the left padding
         for (char c : lines[i]) {
-            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c); // Use GLUT_BITMAP_HELVETICA_18 for the new font size
         }
     }
 
@@ -939,73 +1016,73 @@ void drawTextField(int x, int y, int width, int height, TextField& textfield) {
         glColor3f(0.0, 0.0, 0.0); // black cursor
         glBegin(GL_LINES);
         glVertex2f(cursorX + 2, cursorY + 18);
-        glVertex2f(cursorX + 2, cursorY - 3); 
+        glVertex2f(cursorX + 2, cursorY - 3);  // Adjust the Y coordinate to draw the cursor above the text
         glEnd();
     }
 }
 
-void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, const std::vector<std::string>& column2) {
-    // Calculate the number of rows based on the data in the columns
-    size_t numRows = std::max(column1.size(), column2.size());
 
-    // Calculate the height of the table based on the number of rows and cell height
+void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1) {
+    size_t numRows = column1.size();
+
     int tableHeight = numRows * cellHeight;
 
-    // Set the color for cell borders and text
-    glColor3f(0.0, 0.0, 0.0); // Black color for borders and text
+    glColor3f(0.0, 0.0, 0.0);
 
-    // Draw cell borders and content for column 1
     int currentY = y + tableHeight;
-    int column1Width = width / 2;
-    int column2X = x + column1Width;
+    int columnWidth = width / 4;
 
     for (size_t i = 0; i < numRows; ++i) {
-        // Draw horizontal cell border
         glBegin(GL_LINES);
         glVertex2f(x, currentY);
         glVertex2f(x + width, currentY);
         glEnd();
 
-        // Draw content for column 1
-        if (i < column1.size()) {
-            glRasterPos2f(x + 5, currentY - cellHeight / 2); // Add padding for text
-            for (char c : column1[i]) {
-                glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+        for (int col = 0; col < 4; ++col) {
+            int columnX = x + col * columnWidth;
+
+            if (col > 0) {
+                glBegin(GL_LINES);
+                glVertex2f(columnX, currentY);
+                glVertex2f(columnX, y);
+                glEnd();
             }
-        }
 
-        currentY -= cellHeight;
-    }
-
-    // Draw cell borders and content for column 2
-    currentY = y + tableHeight;
-
-    for (size_t i = 0; i < numRows; ++i) {
-        // Draw vertical cell border
-        glBegin(GL_LINES);
-        glVertex2f(column2X, currentY);
-        glVertex2f(column2X, y);
-        glEnd();
-
-        // Draw content for column 2
-        if (i < column2.size()) {
-            glRasterPos2f(column2X + 5, currentY - cellHeight / 2); // Add padding for text
-            for (char c : column2[i]) {
-                glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+            if (i < column1.size()) {
+                if(col == 0) {
+                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2);
+                    for (char c : column1[i]) {
+                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+                    }
+                } else if(col == 1) {
+                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2);
+                    for (char c : "beam") {
+                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+                    }
+                } else if(col == 2) {
+                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2);
+                    for (char c : "truss") {
+                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+                    }
+                } else {
+                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2);
+                    for (char c : "flat_shell") {
+                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+                    }
+                }
             }
         }
 
         currentY -= cellHeight;
     }
 }
+// void setWindowIcon(const char* iconPath) {
+//     // Load the icon from the given file path
+//     HICON hIcon = (HICON)LoadImage(NULL, iconPath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
 
-void setWindowIcon(const char* iconPath) {
-    // Load the icon from the given file path
-    HICON hIcon = (HICON)LoadImage(NULL, iconPath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
-
-    // Set the window icon
-    SendMessage(GetActiveWindow(), WM_SETICON, ICON_BIG, (LPARAM)hIcon);
-}
+//     // Set the window icon
+//     SendMessage(GetActiveWindow(), WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+// }
 
 void introScreen() {
     glEnable(GL_LIGHTING); // Enable to show image becomes black
@@ -1062,17 +1139,40 @@ void structuralModelScreen() {
 }
 
 void structuralModelFloor1Screen() {
-    drawText("Structural design floor 1", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
-    drawText("You are asked to create a structural design for the building spatial design. Each space is identified by a unique number. Please assign a structural type to each space in the table below. You can choose between 2 types:\n\n- Box structure 6 shells creating a box\n\n- Table structure4 columns with a shell below and on top", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
+    std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F"};
 
-    drawText("Box structure", 1480, 600, 100, 0.0f, 0.0f, 0.0f);
-    drawText("Table structure", 1670, 600, 100, 0.0f, 0.0f, 0.0f);
+    std::vector<std::string> rectangles;
 
-    drawTwoColumnTable(1450, 300, 300, 30, {"Space ID", "1", "2", "3", "4", "5"}, {"Structural element", "Box", "Table", "Box", "Table", "Table"});
+    std::set<bso::utilities::geometry::vertex> createdLabels;
+
+	for (const auto& i : MS)
+	{
+        std::string rectangle;
+
+		bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
+
+
+        for(int j = 0; j < 4; ++j)
+        {
+            rectangle = std::to_string(i->getID()) + surfaceLetters[j];
+            auto tempSurface = spaceGeometry.getPolygons()[j];
+            auto surfaceCenter = tempSurface->getCenter();
+            if(createdLabels.find(surfaceCenter) == createdLabels.end())
+            {
+                rectangles.push_back(rectangle);
+                createdLabels.insert(surfaceCenter);
+            }
+            rectangle = "";
+
+            rectanglesGeometry.push_back(spaceGeometry.getPolygons()[j]);
+        }
+    }
+
+    drawFourColumnTable(1550, 150, 300, 20, rectangles);
 
     drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
 
-    drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 4);
+    drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 6);
 
     std::string iterationText = "Iteration " + std::to_string(iteration_counter);
     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
@@ -1082,10 +1182,8 @@ void structuralModelFloor23Screen() {
     drawText("Structural design floor 2 & 3", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
     drawText("You are asked to create a structural design for the building spatial design. Each space is identified by a unique number. Please assign a structural type to each space in the table below. You can choose between 2 types:\n\n- Box structure 6 shells creating a box\n\n- Table structure4 columns with a shell below and on top", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
 
-    drawText("Box structure", 1480, 600, 100, 0.0f, 0.0f, 0.0f);
-    drawText("Table structure", 1670, 600, 100, 0.0f, 0.0f, 0.0f);
 
-    drawTwoColumnTable(1450, 300, 300, 30, {"Space ID", "1", "2", "3", "4", "5"}, {"Structural element", "Box", "Table", "Box", "Table", "Table"});
+    // drawTwoColumnTable(1450, 300, 300, 30, {"Space ID", "1", "2", "3", "4", "5"}, {"Structural element", "Box", "Table", "Box", "Table", "Table"});
 
     drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
 
@@ -1230,7 +1328,7 @@ int main(int argc, char** argv) {
     initializeTextures();
 
     // Set window icon
-    setWindowIcon("TUE.ico");
+    // setWindowIcon("TUE.ico");
 
     // Set callback functions
     glutDisplayFunc(display);
