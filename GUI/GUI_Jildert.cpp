@@ -2,6 +2,12 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
+#include <Windows.h>
+#include <fstream>
+#include <string>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 #include <bso/spatial_design/ms_building.hpp>
 #include <bso/spatial_design/cf_building.hpp>
@@ -9,30 +15,19 @@
 #include <bso/building_physics/bp_model.hpp>
 #include <bso/grammar/grammar.hpp>
 #include <bso/visualization/visualization.hpp>
-#include <bso/grammar/sd_grammars/design_horizontal.cpp>
 
-bool visualizationActive = true;
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+bso::spatial_design::ms_building MS("Villa");
+bso::spatial_design::cf_building CF(MS);
+
+bool visualizationActive = true; // Flag to control when to activate visualization
 bso::visualization::viewportmanager vpmanager_local;
 bso::visualization::orbitalcamera   cam_local;
 int prevx, prevy;
 
 typedef void (*ButtonCallback)(int);
-
-bso::structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
-bso::structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
-bso::structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
-bso::structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
-double etaBend = 0.1;
-double etaAx = 0.1;
-double etaShear = 0.1;
-double etaNoise = 0.1;
-int etaConverge = 1;
-std::string checkingOrder = "321";
-
-bso::spatial_design::ms_building MS("../SCDP/designs/design_4");
-bso::spatial_design::cf_building CF(MS);
-bso::grammar::grammar grm(CF);
-bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_HORIZONTAL>(std::string("settings/sd_settings.txt"),etaBend,etaAx,etaShear,etaNoise,etaConverge,checkingOrder,trussStructure,beamStructure,flatShellStructure,substituteStructure);
 
 struct Button {
     float x, y, width, height;
@@ -41,13 +36,32 @@ struct Button {
     int variable;
 };
 
+struct LogEntry {
+    std::string time;
+    int iteration;
+    std::string description;
+    std::string value;
+
+    // Constructor
+    LogEntry(int iter, const std::string& desc, const std::string& val)
+        : iteration(iter), description(desc), value(val) {
+            // Format the current time upon entry creation
+            auto now = std::chrono::system_clock::now();
+            auto now_c = std::chrono::system_clock::to_time_t(now);
+            std::ostringstream oss;
+            oss << std::put_time(std::localtime(&now_c), "%H:%M:%S");
+            time = oss.str();
+        }
+};
+
 struct TextField {
+    float x, y, width, height;
     std::string text;
     int cursorPosition;
     bool isActive;
 
     // Constructor
-    TextField() : cursorPosition(0), isActive(false) {}
+    TextField() : cursorPosition(0), isActive(false), x(0), y(0), width(0), height(0) {}
 
     // Add a character where the cursor is
     void addChar(char c) {
@@ -77,49 +91,53 @@ struct TextField {
 };
 
 std::vector<Button> buttons;
-TextField spaceTF;
-TextField splitTF;
+std::vector<LogEntry> logEntries;
+
+TextField removeSpace;
+TextField splitSpace;
+TextField explanation;
 
 // Global variables for current screen and screen dimensions
 int currentScreen = 0;
-const int screenWidth = 1800;
-const int screenHeight = 1000;
+int marginText = 10;
+int startText;
+int textWidth;
+int screenHeight;
+int screenWidth;
 
 // Text margin as a percentage of the window width
-const float MARGIN_PERCENT = 5.0f; // Margin as a percentage of the window width
+const float MARGIN_PERCENT = 1.0f; // Margin as a percentage of the window width
 
-// Counter for removed spaces, can only remove two spaces
-int removed_space_counter = 0;
-int split_space_counter = 0;
-
-// Vector of rectangles
-std::vector<bso::utilities::geometry::polygon*> rectanglesGeometry;
-std::vector<int> rectanglesSpaces;
-std::vector<int> rectanglesInternalIDs;
+// Counter for iterations
+int iteration_counter = 1;
+const int max_iterations = 3; // actual iterations is 1 lower
 
 // Function prototypes
 void display();
 void keyboard(unsigned char key, int x, int y);
 void reshape(int width, int height);
-void mainScreen();
-void assignmentDescriptionScreen();
-void screen3();
-void screen4();
-void drawText(const char *text, float x, float y);
+void updateTextureCoordinates(int width, int height);
+void introScreen();
+void buildingSpatialScreen();
+void structuralModelScreen();
+void structuralModelFloor1Screen();
+void structuralModelFloor23Screen();
+void removeSpaceScreen();
+void splitSpaceScreen();
+void iterationCompleteScreen();
+void surveyScreen();
+void displayConfirmationRequest(int spaceID, const std::string& message, void (*action)(int));
+void drawText(const char* text, float startX, float centerY, float textWidth, float r, float g, float b, bool bold = false);
 void drawButton(const char *text, float x, float y, float width, float height, ButtonCallback callback, int variable);
 void drawArrow(float x, float y, bool leftArrow);
 void drawUndoRedoButtons();
 void drawTextField(int x, int y, int width, int height, TextField& textfield);
 void onMouseClick(int button, int state, int x, int y);
 void drawBuilding();
-void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1);
+void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, const std::vector<std::string>& column2);
+void setWindowIcon(const char* iconPath);
 void setup2D();
 void setup3D();
-void introScreen();
-bool checkIfRemovePossible();
-bool checkIfSplitPossible();
-void splitSpaceScreen();
-void rectangleSelectionScreen();
 std::string clean_str(const std::string& input);
 
 void visualise(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "ms_building", const double& lineWidth = 1.0)
@@ -132,7 +150,12 @@ void visualise(const bso::spatial_design::cf_building& cf, std::string type, std
 	vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::Conformal_Model(cf, type, title)));
 }
 
-void visualise(const bso::structural_design::sd_model& sd, const std::string& type ="component",
+void visualise_2(const bso::spatial_design::cf_building& cf, std::string type = "cuboid", std::string title = "sc_building")
+{
+	vpmanager_local.addviewport(new bso::visualization::viewport(new bso::visualization::Conformal_Model(cf, type, title)));
+}
+
+void visualize(const bso::structural_design::sd_model& sd, const std::string& type ="component",
 							 const std::string& title ="sd_model", const bool& ghostly = false,
 							 const std::vector<std::pair<bso::utilities::geometry::vertex,
 							 bso::utilities::geometry::vector>>& cuttingPlanes = {})
@@ -161,115 +184,330 @@ std::string clean_str(const std::string& input) {
     return result;
 }
 
-void removeSpace(int screen) {
-    int space_to_delete;
-    if(spaceTF.text.empty() && !checkIfRemovePossible()) space_to_delete = -1;
-    else space_to_delete = std::stoi(clean_str(spaceTF.text));
-    std::cout << "Space to delete: " << space_to_delete << std::endl;
-    std::cout << "Space to delete: " << MS.getSpacePtrs().size() << std::endl;
-    if(space_to_delete <= MS.getLastSpaceID()) {
-        MS.deleteSpace(MS.getSpacePtr(MS.getSpacePtrs()[MS.getSpaceLocation(space_to_delete)]));
-        std::cout<< "Space deleted: " << space_to_delete << std::endl;
-        removed_space_counter++;
-    } else {
-        std::cout << "Space does not exist" << std::endl;
+std::set<int> removedSpaceIDs;
+std::set<int> splitSpaceIDs;
+
+unsigned int initialSpaceCount = MS.getSpacePtrs().size();
+double floorArea = MS.getFloorArea();
+
+bool scalingCompleted = false;
+bool splittingConfirmed = false;
+bool deletionConfirmed = false;
+bool inputFieldDisabled = false;
+bool spaceInputError = false;
+std::string spaceInputErrorMessage;
+
+bool awaitingConfirmation = false; 
+int pendingOperationSpaceID = -1; 
+std::string confirmationMessage;
+void (*confirmationAction)(int); 
+
+GLuint loadImageAsTexture(const char* filename) {
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load(filename, &width, &height, &nrChannels, 0);
+    if (!data) {
+        std::cerr << "Failed to load texture: " << filename << std::endl;
+        return 0;
     }
 
-    spaceTF.text = "";
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    currentScreen = screen;
-    std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 5 && screen != 3) {
-        vpmanager_local.clearviewports();
-        // visualise(MS);
-        visualise(MS);
-        //visualise(CF, "rectangles");
-        // visualise(SD_Building, 1);
-        visualizationActive = true;
-    } else if(screen == 3) {
-        vpmanager_local.clearviewports();
-        visualise(SD_model);
-    } else {
-        vpmanager_local.clearviewports();
-        visualizationActive = false;
-    }
-    glutPostRedisplay();
-    buttons.clear();
+    GLenum format = GL_RGB; // Default to GL_RGB
+    if (nrChannels == 1)
+        format = GL_RED;
+    else if (nrChannels == 3)
+        format = GL_RGB; // Explicitly set, even though it's the default
+    else if (nrChannels == 4)
+        format = GL_RGBA;
+
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    stbi_image_free(data);
+
+    return textureID;
 }
 
-void splitSpace(int screen) {
-    int space_to_split;
-    if(splitTF.text.empty() && !checkIfRemovePossible()) space_to_split = -1;
-    else space_to_split = std::stoi(clean_str(splitTF.text));
-    std::cout << "Space to split: " << space_to_split << std::endl;
-    std::cout << "Space to split: " << MS.getSpacePtrs().size() << std::endl;
-    if(space_to_split <= MS.getLastSpaceID()) {
-        MS.splitSpace(MS.getSpacePtr(MS.getSpacePtrs()[MS.getSpaceLocation(space_to_split)]));
-        std::cout<< "Space split: " << space_to_split << std::endl;
-        split_space_counter++;
-    } else {
-        std::cout << "Space does not exist" << std::endl;
-    }
-
-    splitTF.text = "";
-
-    currentScreen = screen;
-    std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 5 && screen != 3) {
-        vpmanager_local.clearviewports();
-        // visualise(MS);
-        visualise(MS);
-        //visualise(CF, "rectangles");
-        // visualise(SD_Building, 1);
-        visualizationActive = true;
-    } else if(screen == 3) {
-        vpmanager_local.clearviewports();
-        visualise(SD_model);
-    } else {
-        vpmanager_local.clearviewports();
-        visualizationActive = false;
-    }
-    glutPostRedisplay();
-    buttons.clear();
+void displayTexture(GLuint texture, float x, float y, float width, float height) {
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    glBegin(GL_QUADS);
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(x, y);
+        glTexCoord2f(1.0f, 1.0f); glVertex2f(x + width, y);
+        glTexCoord2f(1.0f, 0.0f); glVertex2f(x + width, y + height);
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(x, y + height);
+    glEnd();
+    glDisable(GL_TEXTURE_2D);
 }
+
+GLuint imgVilla;
+GLuint imgElements;
+
+void initializeTextures() {
+    imgVilla = loadImageAsTexture("Villa.png");
+    imgElements = loadImageAsTexture("Elements.png");
+    // Load more textures as needed
+}
+
+std::string getCurrentTime() {
+    auto now = std::chrono::system_clock::now();
+    auto now_c = std::chrono::system_clock::to_time_t(now);
+    std::ostringstream oss;
+    oss << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S");
+    return oss.str();
+}
+
+void logAction(int iteration, const std::string& description, const std::string& value) {
+    logEntries.emplace_back(iteration, description, value);
+}
+
+void writeToProcessFile(const std::string& fileName) {
+    std::ofstream processFile(fileName, std::ios::app);
+    static bool headerPrinted = false;
+    if (!headerPrinted) {
+        processFile << "Time;Iteration;Description;Value\n";
+        headerPrinted = true;
+    }
+
+    for (const auto& entry : logEntries) {
+        processFile << entry.time << ";" << entry.iteration << ";"
+                    << entry.description << ";" << entry.value << "\n";
+    }
+    processFile.close();
+    logEntries.clear();
+}
+
 
 void changeScreen(int screen) {
+    inputFieldDisabled = false;
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-    if(screen  <= 5 && screen != 3) {
+    if(screen  != 3) {
         vpmanager_local.clearviewports();
         // visualise(MS);
         visualise(MS);
         //visualise(CF, "rectangles");
         // visualise(SD_Building, 1);
         visualizationActive = true;
-    } else if(screen == 3) {
-        vpmanager_local.clearviewports();
-        visualise(SD_model);
     } else {
         vpmanager_local.clearviewports();
-        visualizationActive = false;
+        visualise(MS);
+        visualise_2(CF);
+        visualizationActive = true;
     }
     glutPostRedisplay();
     buttons.clear();
+}
+
+void reshape(int width, int height) {
+    screenHeight = height;
+    screenWidth = width;
+
+    marginText = 20;
+    startText = screenWidth / 1.28f + marginText;
+    textWidth = screenWidth - startText - marginText;
+
+    glViewport(0, 0, width, height);
+    glutPostRedisplay();
+    // For 2D rendering
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(0.0, screenWidth, 0.0, screenHeight);
+
+    //For 3D rendering (commented out; use if needed)
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+    gluPerspective(45.0, aspectRatio, 0.1, 100.0);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+
+void displayConfirmationRequest(int spaceID, const std::string& message, void (*action)(int)) {
+    pendingOperationSpaceID = spaceID;
+    confirmationMessage = message;
+    confirmationAction = action;
+    awaitingConfirmation = true;
+
+    spaceInputError = true;
+    spaceInputErrorMessage = confirmationMessage;
+    glutPostRedisplay();
+}
+
+bool validateSpaceRemoveID(const std::string& input, int& outNumber, std::string& errorMessage) {
+    try {
+        outNumber = std::stoi(input);
+    } catch (...) {
+        errorMessage = "Input is not a valid number.";
+        return false;
+    }
+
+    if (outNumber <= 0 || outNumber > MS.getLastSpaceID()) {
+        errorMessage = "ID is out of range.";
+        return false;
+    }
+
+    if (removedSpaceIDs.find(outNumber) != removedSpaceIDs.end()) {
+        errorMessage = "Space has been removed and is not eligible.";
+        return false;
+    }
+
+    if (splitSpaceIDs.find(outNumber) != splitSpaceIDs.end()) {
+        errorMessage = "Space has been split and is not eligible.";
+        return false;
+    }
+
+    return true;
+}
+
+
+void removeSpaceConfirmed(int spaceID) {
+    MS.deleteSpace(MS.getSpacePtr(MS.getSpacePtrs()[MS.getSpaceLocation(spaceID)]));
+    std::cout << "Space removed: " << spaceID << std::endl;
+    removedSpaceIDs.insert(spaceID); // Track the removed space ID
+    std::cout << "Adding to removed: " << spaceID << std::endl;
+    glutPostRedisplay();
+
+    logAction(iteration_counter, "Space Removed", std::to_string(spaceID));
+
+    // Reset state as necessary
+    awaitingConfirmation = false;
+    spaceInputError = false;
+    spaceInputErrorMessage = "";
+    deletionConfirmed = true;
+    inputFieldDisabled = true; 
+
+    // Refresh the visualization with the updated MS
+    visualise(MS);
+    visualizationActive = true;
+}
+
+bool validateSpaceSplitID(const std::string& input, int& outNumber, int initialSpaceCount, std::string& errorMessage) {
+    try {
+        outNumber = std::stoi(input);
+    } catch (...) {
+        errorMessage = "Input is not a valid number.";
+        return false;
+    }
+
+    if (outNumber <= 0) {
+        errorMessage = "ID is out of range.";
+        return false;
+    }
+
+    if (removedSpaceIDs.find(outNumber) != removedSpaceIDs.end()) {
+        errorMessage = "Space has been removed and is not eligible.";
+        return false;
+    }
+
+    if (outNumber > MS.getLastSpaceID()) {
+        errorMessage = "ID is out of range.";
+        return false;
+    }
+    
+    if (outNumber > initialSpaceCount) {
+        errorMessage = "Space is created by split and is not eligible.";
+        return false;
+    }
+
+    if (splitSpaceIDs.find(outNumber) != splitSpaceIDs.end()) {
+        errorMessage = "Space has been split and is not eligible.";
+        return false;
+    }
+
+    return true;
+}
+
+
+
+void splitSpaceConfirmed(int spaceID) {
+    auto* spaceToSplit = MS.getSpacePtr(MS.getSpacePtrs()[MS.getSpaceLocation(spaceID)]);
+
+    if (spaceToSplit) {
+        // Find the largest dimension of the space
+        double largestDimension = -1.0; // Initialize with a small value
+        unsigned int largestDimensionIndex = 0;
+        for (unsigned int k = 0; k < 3; ++k) {
+            double dimension = spaceToSplit->getDimensions()(k);
+            if (dimension > largestDimension) {
+                largestDimension = dimension;
+                largestDimensionIndex = k;
+            }
+        }
+
+        // Split the space along its largest dimension
+        MS.splitSpace(spaceToSplit, {{largestDimensionIndex, 2}});
+
+        std::cout << "Space " << spaceID << " split along its largest dimension (" << largestDimensionIndex << ")." << std::endl;
+        splitSpaceIDs.insert(spaceID); // Track the split space ID
+        // Update the visualization to reflect the changes
+        visualise(MS);
+        splittingConfirmed = true;
+
+    } else {
+        std::cout << "Failed to find space for ID: " << spaceID << std::endl;
+        spaceInputError = true;
+        spaceInputErrorMessage = "Failed to find space for splitting.";
+    }
+
+    logAction(iteration_counter, "Space Split", std::to_string(spaceID));
+
+    // Reset the UI and state flags regardless of outcome
+    awaitingConfirmation = false;
+    spaceInputError = false; 
+    spaceInputErrorMessage = "";
+    inputFieldDisabled = true; 
+
+    glutPostRedisplay();
+}
+
+
+void scaleModel() {
+    // SCALE TO RECOVER INITIAL FLOOR AREA
+    double scaleFactor = sqrt(floorArea / MS.getFloorArea());
+    MS.scale({{0,scaleFactor},{1,scaleFactor}});
+    MS.snapOn({{0,1},{1,1}});
+    // Update the visualization to reflect the changes
+    visualise(MS);
+
+    logAction(iteration_counter, "Scale Factor", std::to_string(scaleFactor));
+
+    // Increment iteration counter
+    iteration_counter++;
 }
 
 void motion(int x, int y)
 {
-    double dx = prevx-x,
-            dy = prevy-y;
+    // Calculate the boundary of the 3D view area dynamically
+    float viewWidth = screenWidth / 1.28f;
 
-    cam_local.setrotation(cam_local.getrotation() + (dx*0.5));
-    cam_local.setelevation(cam_local.getelevation() + (dy*0.5));
+    // Only perform rotation if the mouse is within the 3D view area
+    if (x <= viewWidth) {
+        double dx = prevx - x;
+        double dy = prevy - y;
 
-    prevx = x;
-    prevy = y;
+        cam_local.setrotation(cam_local.getrotation() + (dx * 0.5));
+        cam_local.setelevation(cam_local.getelevation() + (dy * 0.5));
 
+        prevx = x;
+        prevy = y;
+    }
+
+    // Always handle other motion events
     vpmanager_local.mousemove_event(x, y);
 
     glutPostRedisplay();
-    buttons.clear();
 }
+
 
 void passive_motion(int x, int y)
 {
@@ -293,7 +531,7 @@ void display() {
     if (visualizationActive) {
         // Set viewport for the left half of the screen
         setup3D();
-        
+
         // Render the visualization
         vpmanager_local.render(cam_local);
         checkGLError("render");
@@ -306,12 +544,14 @@ void display() {
     // Render the current screen
     switch (currentScreen) {
         case 0: introScreen(); break;
-        case 1: mainScreen(); break;
-        case 2: assignmentDescriptionScreen(); break;
-        case 3: rectangleSelectionScreen(); break;
-        case 4: screen3(); break;
-        case 5: splitSpaceScreen(); break;
-        case 6: screen4(); break;
+        case 1: buildingSpatialScreen(); break;
+        case 2: structuralModelScreen(); break;
+        case 3: structuralModelFloor1Screen(); break;
+        case 4: structuralModelFloor23Screen(); break;
+        case 5: removeSpaceScreen(); break;
+        case 6: splitSpaceScreen(); break;
+        case 7: iterationCompleteScreen(); break;
+        case 8: surveyScreen(); break;
         default: break;
     }
 
@@ -323,7 +563,10 @@ void display() {
     while((err = glGetError()) != GL_NO_ERROR) {
         std::cerr << "OpenGL error: " << gluErrorString(err) << std::endl;
     }
+
+    glutPostRedisplay();
 }
+
 
 void setup2D() {
     glViewport(0, 0, screenWidth, screenHeight);
@@ -333,7 +576,7 @@ void setup2D() {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glDisable(GL_DEPTH_TEST);
-    
+
     // Disable lighting for 2D
     glDisable(GL_LIGHTING);
     glDisable(GL_LIGHT0);
@@ -341,7 +584,7 @@ void setup2D() {
 
 void setup3D() {
     GLint viewportWidth = screenWidth / 1.28;
-    GLint viewportHeight = screenHeight;
+    GLint viewportHeight = 1.1 * screenHeight;
 
     vpmanager_local.resize(viewportWidth, viewportHeight);
 
@@ -351,7 +594,7 @@ void setup3D() {
     // Setup the projection matrix for 3D rendering
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    
+
     // Adjust the perspective projection to match the new aspect ratio
     GLfloat aspectRatio = (GLfloat)viewportWidth / (GLfloat)viewportHeight;
     gluPerspective(45.0, aspectRatio, 0.1f, 1000.0f);
@@ -368,30 +611,6 @@ void setup3D() {
     glEnable(GL_LIGHT0);
 }
 
-void reshape(int width, int height) {
-    // Prevent a divide by zero error by making height equal to one
-    if (height == 0) {
-        height = 1;
-    }
-
-    float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-
-    // Set the viewport to cover the new window size
-    glViewport(0, 0, width, height);
-
-    // Set up the projection matrix
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    // Set up a perspective projection matrix or an orthographic one depending on your needs
-    gluPerspective(45.0, aspectRatio, 0.1, 100.0);
-    // For 2D GUI you may want to use an orthographic projection instead
-    // gluOrtho2D(0.0, width, 0.0, height);
-
-    // Return to the modelview matrix mode
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-}
-
 
 void keyboard(unsigned char key, int x, int y) {
     // Change screens based on key press
@@ -405,85 +624,179 @@ void keyboard(unsigned char key, int x, int y) {
         std::cerr << "OpenGL error: " << gluErrorString(err) << std::endl;
     }
 
-    if(currentScreen == 3) {
-        if (key >= 32 && key <= 126) { // Check if it's a printable ASCII character
-            spaceTF.text += key; // Append the character to the input string
-        } else if (key == 8 && spaceTF.text != "") { // Backspace key
-            spaceTF.text.pop_back(); // Remove the last character from input string
-        } else if (key == 13) { // Enter key
-            // Print the entered text to the terminal
-            std::cout << "Entered text: " << spaceTF.text << std::endl;
-            spaceTF.text = ""; // Clear the input string after processing
+    if (currentScreen == 5) {
+        if (awaitingConfirmation) {
+            if (key == 'y' || key == 'Y') {
+                confirmationAction(pendingOperationSpaceID); 
+                awaitingConfirmation = false;
+                spaceInputError = false;
+                spaceInputErrorMessage = "";
+            } else if (key == 'n' || key == 'N') {
+                awaitingConfirmation = false;
+                spaceInputError = false;
+                spaceInputErrorMessage = "";
+                removeSpace.text = ""; 
+                glutPostRedisplay();
+            }
+            return; 
+        }
+        else if (key == 13) { // Enter key pressed
+            if (inputFieldDisabled) {
+            spaceInputError = false;
+            spaceInputErrorMessage = "";
+            glutPostRedisplay(); 
+            return;
+            }
+            int spaceID;
+            std::string errorMessage; // Variable to hold the validation error message
+            if (validateSpaceRemoveID(removeSpace.text, spaceID, errorMessage)) { // Validate input
+                // If validation succeeds, set up for confirmation
+                awaitingConfirmation = true;
+                // Call displayConfirmationRequest
+                displayConfirmationRequest(spaceID, "Press Y to confirm, N to cancel.", removeSpaceConfirmed);
+            } else {
+                // Handle invalid input based on the specific error message returned by validation
+                removeSpace.text = "";
+                spaceInputError = true;
+                spaceInputErrorMessage = errorMessage;
+                glutPostRedisplay();
+            }
+            return;
+        }
+        else if (key >= 32 && key <= 126) { // Check if it's a printable ASCII character
+            removeSpace.text += key; // Append the character to the input string
+        } else if (key == 8 && removeSpace.text != "") { // Backspace key
+            removeSpace.text.pop_back(); // Remove the last character from input string
         }
     }
 
-    if(currentScreen == 4) {
-        if (key >= 32 && key <= 126) { // Check if it's a printable ASCII character
-            splitTF.text += key; // Append the character to the input string
-        } else if (key == 8 && splitTF.text != "") { // Backspace key
-            splitTF.text.pop_back(); // Remove the last character from input string
-        } else if (key == 13) { // Enter key
-            // Print the entered text to the terminal
-            std::cout << "Entered text: " << splitTF.text << std::endl;
-            splitTF.text = ""; // Clear the input string after processing
+    if (currentScreen == 6) {
+        if (awaitingConfirmation) {
+            if (key == 'y' || key == 'Y') {
+                confirmationAction(pendingOperationSpaceID);
+                awaitingConfirmation = false;
+                spaceInputError = false;
+                spaceInputErrorMessage = "";
+            } else if (key == 'n' || key == 'N') {
+                awaitingConfirmation = false;
+                spaceInputError = false;
+                spaceInputErrorMessage = "";
+                splitSpace.text = "";
+                glutPostRedisplay();
+            }
+            return;
+        }
+        else if (key == 13) { // Enter key pressed
+            if (inputFieldDisabled) {
+            spaceInputError = false;
+            spaceInputErrorMessage = "";
+            glutPostRedisplay(); 
+            return;
+            }
+            int spaceID;
+            std::string errorMessage; // Variable to hold the validation error message
+            if (validateSpaceSplitID(splitSpace.text, spaceID, initialSpaceCount, errorMessage)) {
+                // If validation succeeds, set up for confirmation
+                awaitingConfirmation = true;
+                // Call displayConfirmationRequest
+                displayConfirmationRequest(spaceID, "Press Y to confirm, N to cancel.", splitSpaceConfirmed);
+            } else {
+                // Handle invalid input based on the specific error message returned by validation
+                splitSpace.text = "";
+                spaceInputError = true;
+                spaceInputErrorMessage = errorMessage;
+                glutPostRedisplay();
+            }
+            return;
+        }
+        else if (key >= 32 && key <= 126) { // Check if it's a printable ASCII character
+            splitSpace.text += key; // Append the character to the input string
+        } else if (key == 8 && removeSpace.text != "") { // Backspace key
+            splitSpace.text.pop_back(); // Remove the last character from input string
         }
     }
-
-
-    // Redraw screen
+    if (key == 'f') {
+        static bool isFullScreen = false;
+        isFullScreen = !isFullScreen;
+        if (isFullScreen) {
+            glutFullScreen(); // Go full screen
+        } else {
+            glutReshapeWindow(screenWidth, screenHeight); // Return to window mode with initial dimensions
+            glutPositionWindow(100, 100); // Optionally reposition window
+        }
+    }
     glutPostRedisplay();
 }
 
-bool checkIfRemovePossible() {
-    if(removed_space_counter < 2) {
-        return true;
-    } else {
-        return false;
-    }
-}
+void drawText(const char* text, float startX, float centerY, float textWidth, float r, float g, float b, bool bold) {
+    float lineHeight = 18; // Approximate line height
+    float effectiveTextWidth = textWidth; // Assuming margins are already accounted for
 
-bool checkIfSplitPossible() {
-    if(split_space_counter < 2) {
-        return true;
-    } else {
-        return false;
-    }
-}
+    // Simplified adjustments for bold text rendering
+    const float offsets[][2] = {{0.0f, 0.0f}, {0.5f, 0.0f}, {-0.5f, 0.0f}};
+    int numOffsets = bold ? 3 : 1;
 
-void drawText(const char *text, float centerX, float centerY, float textWidth) {
-    float lineHeight = 18; // Approximate line height, adjust as needed
-    float effectiveTextWidth = textWidth - 2 * MARGIN_PERCENT; // Effective width after considering margins
+    glColor3f(r, g, b);
 
-    // Calculate the starting position (left align within the margin)
-    float startX = centerX - effectiveTextWidth / 2.0f;
-    float currentX = startX;
-    float currentY = centerY;
+    for (int i = 0; i < numOffsets; ++i) {
+        float offsetX = offsets[i][0];
+        float currentX = startX;
+        float currentY = centerY;
 
-    for (const char *c = text; *c != '\0'; c++) {
-        // Check if we need to wrap the line
-        if ((currentX - startX > effectiveTextWidth) && (*c == ' ' || *c == '\n')) {
-            currentY -= lineHeight;
-            currentX = startX;
+        const char* word = text;
+        while (*word != '\0') { // Iterate through each character in text
+            const char* nextSpace = strchr(word, ' ');
+            int wordLength;
+            if (nextSpace != NULL) {
+                wordLength = nextSpace - word;
+            } else {
+                wordLength = strlen(word); // Last word
+            }
+
+            // Calculate width of the next word
+            float wordWidth = 0;
+            for (int j = 0; j < wordLength; j++) {
+                wordWidth += glutBitmapWidth(GLUT_BITMAP_HELVETICA_18, word[j]);
+            }
+
+            // Check if the word fits in the remaining line, wrap if it doesn't
+            if (currentX - startX + wordWidth > effectiveTextWidth) {
+                currentY -= lineHeight;
+                currentX = startX;
+            }
+
+            // Draw the word
+            for (int j = 0; j < wordLength; j++) {
+                glRasterPos2f(currentX + offsetX, currentY);
+                glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, word[j]);
+                currentX += glutBitmapWidth(GLUT_BITMAP_HELVETICA_18, word[j]);
+            }
+
+            // Skip the space
+            if (nextSpace != NULL) {
+                currentX += glutBitmapWidth(GLUT_BITMAP_HELVETICA_18, ' '); // Add space width if not the last word
+                word = nextSpace + 1; // Move to the start of the next word
+            } else {
+                break; // End of text
+            }
         }
-
-        glRasterPos2f(currentX, currentY);
-
-        // Set text color to black
-        glColor3f(0.0, 0.0, 0.0); // black color for text
-
-        // Draw the character
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c);
-
-        // Move to the next character position
-        currentX += glutBitmapWidth(GLUT_BITMAP_HELVETICA_18, *c);
     }
 }
 
+int calculateTextWidth(const char* text) {
+    int textWidth = 0;
+    while (*text) {
+        textWidth += glutBitmapWidth(GLUT_BITMAP_HELVETICA_18, *text);
+        ++text;
+    }
+    return textWidth;
+}
 
 void drawButton(const char *text, float x, float y, float width, float height, ButtonCallback callback, int variable) {
     float borderWidth = 2.0;
 
-    glColor3f(0.0, 0.0, 0.0); // Black color for border
+    // Draw button border
+    glColor3f(0.0, 0.0, 0.0); // Black
     glBegin(GL_QUADS);
     glVertex2f(x - borderWidth, y - borderWidth);
     glVertex2f(x + width + borderWidth, y - borderWidth);
@@ -491,8 +804,8 @@ void drawButton(const char *text, float x, float y, float width, float height, B
     glVertex2f(x - borderWidth, y + height + borderWidth);
     glEnd();
 
-    // Draw button rectangle with white background
-    glColor3f(1.0, 1.0, 1.0); // white color for button background
+    // Draw button background
+    glColor3f(1.0, 1.0, 1.0); // White
     glBegin(GL_QUADS);
     glVertex2f(x, y);
     glVertex2f(x + width, y);
@@ -500,46 +813,31 @@ void drawButton(const char *text, float x, float y, float width, float height, B
     glVertex2f(x, y + height);
     glEnd();
 
-    // Centered text within the button with margin
-    float centerX = x + width / 2;
-    float centerY = y + height / 2;
-    float textWidth = width - 2 * MARGIN_PERCENT; // Text width considering margin
+    // Accurately calculate text width
+    int textWidth = calculateTextWidth(text);
+    // Center the text horizontally and vertically
+    float textX = x + (width - textWidth) / 2.0f;
+    // Approximate vertical centering (adjust as needed for different fonts)
+    float textY = y + (height - 18) / 2.0f; // Using 18 as an approximate height for GLUT_BITMAP_HELVETICA_18
 
-    // Set text color to black
-    glColor3f(0.0, 0.0, 0.0);
-    drawText(text, centerX, centerY, textWidth);
+    // Set text color and draw text
+    glColor3f(0.0f, 0.0f, 0.0f); // Black
+    glRasterPos2f(textX, textY);
+    for (const char* p = text; *p; p++) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *p);
+    }
 
     Button button = {x, y, width, height, callback, text, variable};
     buttons.push_back(button);
 }
 
-std::vector<bso::structural_design::component::geometry*> cleanGeometry(std::vector<bso::structural_design::component::geometry*> allgeoms) {
-    std::vector<bso::structural_design::component::geometry*> rectgeoms;
-    for (int i = 0; i < allgeoms.size(); i++) {
-        if (allgeoms[i]->isQuadrilateral()) {
-            rectgeoms.push_back(allgeoms[i]);
-        }
+void checkTextFieldClick(TextField& textField, float mouseX, float mouseY) {
+    if (mouseX >= textField.x && mouseX <= textField.x + textField.width &&
+        mouseY >= textField.y && mouseY <= textField.y + textField.height) {
+        textField.isActive = true;
     }
-    return rectgeoms;
-}
-
-void handleCellClick(int clickedRow, int clickedColumn) {
-    int space = clickedRow / 4;
-
-    std::vector<bso::structural_design::component::geometry*> allgeoms = SD_model.getGeometries();
-    std::vector<bso::structural_design::component::geometry*> rectgeoms = cleanGeometry(allgeoms);
-
-    std::cout << "Cell clicked" << clickedRow << clickedColumn << std::endl;
-
-    if(clickedColumn == 1) {
-        rectgeoms[clickedRow]->addStructure(trussStructure);
-        std::cout << "Truss structure added to rectangle " << clickedRow << std::endl;
-    } else if(clickedColumn == 2) {
-        rectgeoms[clickedRow]->addStructure(beamStructure);
-        std::cout << "Beam structure added to rectangle " << clickedRow << std::endl;
-    } else if(clickedColumn == 3) {
-        rectgeoms[clickedRow]->addStructure(flatShellStructure);
-        std::cout << "Flat shell structure added to rectangle " << clickedRow << std::endl;
+    else {
+        textField.isActive = false;
     }
 }
 
@@ -548,6 +846,12 @@ void onMouseClick(int button, int state, int x, int y) {
         float mouseY = screenHeight - static_cast<float>(y);
         float mouseX = static_cast<float>(x);
 
+        // Check each text field individually
+        checkTextFieldClick(removeSpace, mouseX, mouseY);
+        checkTextFieldClick(splitSpace, mouseX, mouseY);
+        checkTextFieldClick(explanation, mouseX, mouseY);
+
+        // Check for button clicks
         for (const auto& btn : buttons) {
             if (mouseX >= btn.x && mouseX <= btn.x + btn.width &&
                 mouseY >= btn.y && mouseY <= btn.y + btn.height) {
@@ -558,27 +862,14 @@ void onMouseClick(int button, int state, int x, int y) {
                 break;
             }
         }
-
-        if(currentScreen == 3) {
-            int x = 1450;
-            int y = 150;
-            int width = 300;
-            int cellHeight = 20;
-            int numRows = 28;
-            int columnWidth = width / 4;
-
-            int clickedRow = (y + numRows * cellHeight - mouseY) / cellHeight;
-            int clickedColumn = (mouseX - x) / columnWidth;
-
-            if (clickedRow >= 0 && clickedRow < numRows && clickedColumn >= 0 && clickedColumn < 4) {
-                handleCellClick(clickedRow, clickedColumn);
-            }
-
-        }
     }
 }
 
 void drawTextField(int x, int y, int width, int height, TextField& textfield) {
+    textfield.x = x;
+    textfield.y = y;
+    textfield.width = width;
+    textfield.height = height;
     float borderWidth = 2.0;
 
     // Calculate the adjusted width and height considering padding
@@ -606,7 +897,6 @@ void drawTextField(int x, int y, int width, int height, TextField& textfield) {
     glColor3f(0.0, 0.0, 0.0); // black text
 
     // Implement text wrapping within the width of the text field
-    // This is a simplistic approach and might need adjustment for different font widths
     int maxWidth = adjustedWidth; // maximum width for text before wrapping
     int currentWidth = 0;
     std::string line;
@@ -638,7 +928,7 @@ void drawTextField(int x, int y, int width, int height, TextField& textfield) {
         int currentY = startY - i * lineHeight; // Calculate the Y coordinate for this line
         glRasterPos2f(x + borderWidth, currentY); // Adjust for the left padding
         for (char c : lines[i]) {
-            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c); // Use GLUT_BITMAP_HELVETICA_18 for the new font size
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
         }
     }
 
@@ -648,58 +938,15 @@ void drawTextField(int x, int y, int width, int height, TextField& textfield) {
         int cursorY = startY; // Use the same starting Y coordinate as the text
         glColor3f(0.0, 0.0, 0.0); // black cursor
         glBegin(GL_LINES);
-        glVertex2f(cursorX, cursorY - 18); // Adjust the Y coordinate to draw the cursor above the text
-        glVertex2f(cursorX, cursorY - 3);  // Adjust the Y coordinate to draw the cursor above the text
+        glVertex2f(cursorX + 2, cursorY + 18);
+        glVertex2f(cursorX + 2, cursorY - 3); 
         glEnd();
     }
 }
 
-
-
-
-
-// Function to draw an arrow inside a button
-void drawArrow(float x, float y, bool leftArrow) {
-    glBegin(GL_TRIANGLES);
-    if (leftArrow) {
-        glVertex2f(x + 10, y + 10);
-        glVertex2f(x + 30, y + 25);
-        glVertex2f(x + 10, y + 40);
-    } else {
-        glVertex2f(x + 30, y + 10);
-        glVertex2f(x + 10, y + 25);
-        glVertex2f(x + 30, y + 40);
-    }
-    glEnd();
-}
-
-// Function to draw undo and redo buttons
-void drawUndoRedoButtons() {
-    // Undo Button
-    glColor3f(0.7, 0.7, 0.7); // Button color
-    drawButton("", 10, screenHeight - 60, 50, 50, buttonClicked, 1);
-    glColor3f(0, 0, 0); // Arrow color
-    drawArrow(10, screenHeight - 60, false); // Left arrow for undo
-
-    // Redo Button
-    glColor3f(0.7, 0.7, 0.7); // Button color
-    drawButton("", 70, screenHeight - 60, 50, 50, buttonClicked, 1);
-    glColor3f(0, 0, 0); // Arrow color
-    drawArrow(70, screenHeight - 60, true); // Right arrow for redo
-
-    // Reset Button
-    glColor3f(0.7, 0.7, 0.7); // Button color
-    drawButton("Reset", 10, screenHeight - 120, 110, 50, buttonClicked, 1);
-}
-
-#include <vector>
-#include <string>
-#include <algorithm>
-#include <GL/glut.h> // Ensure you have the GLUT library installed
-
-void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1) {
-    // Calculate the number of rows based on the data in the first column
-    size_t numRows = column1.size();
+void drawTwoColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, const std::vector<std::string>& column2) {
+    // Calculate the number of rows based on the data in the columns
+    size_t numRows = std::max(column1.size(), column2.size());
 
     // Calculate the height of the table based on the number of rows and cell height
     int tableHeight = numRows * cellHeight;
@@ -707,9 +954,10 @@ void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vec
     // Set the color for cell borders and text
     glColor3f(0.0, 0.0, 0.0); // Black color for borders and text
 
-    // Draw cell borders and content for each column
+    // Draw cell borders and content for column 1
     int currentY = y + tableHeight;
-    int columnWidth = width / 4; // Now the width is divided by 4, for 4 columns
+    int column1Width = width / 2;
+    int column2X = x + column1Width;
 
     for (size_t i = 0; i < numRows; ++i) {
         // Draw horizontal cell border
@@ -718,42 +966,32 @@ void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vec
         glVertex2f(x + width, currentY);
         glEnd();
 
-        for (int col = 0; col < 4; ++col) {
-            // Calculate X position for the column
-            int columnX = x + col * columnWidth;
-
-            // Draw vertical cell border for all columns except the first
-            if (col > 0) {
-                glBegin(GL_LINES);
-                glVertex2f(columnX, currentY);
-                glVertex2f(columnX, y);
-                glEnd();
+        // Draw content for column 1
+        if (i < column1.size()) {
+            glRasterPos2f(x + 5, currentY - cellHeight / 2); // Add padding for text
+            for (char c : column1[i]) {
+                glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
             }
+        }
 
-            // For simplicity, we replicate the content of column1 in the other columns
-            // Adjust this logic to change how content for columns 2, 3, and 4 is generated
-            if (i < column1.size()) {
-                if(col == 0) {
-                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2); // Add padding for text
-                    for (char c : column1[i]) {
-                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
-                    }
-                } else if(col == 1) {
-                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2); // Add padding for text
-                    for (char c : "beam") {
-                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
-                    }
-                } else if(col == 2) {
-                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2); // Add padding for text
-                    for (char c : "truss") {
-                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
-                    }
-                } else {
-                    glRasterPos2f(columnX + 5, currentY - cellHeight / 2); // Add padding for text
-                    for (char c : "flat_shell") {
-                        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
-                    }
-                }
+        currentY -= cellHeight;
+    }
+
+    // Draw cell borders and content for column 2
+    currentY = y + tableHeight;
+
+    for (size_t i = 0; i < numRows; ++i) {
+        // Draw vertical cell border
+        glBegin(GL_LINES);
+        glVertex2f(column2X, currentY);
+        glVertex2f(column2X, y);
+        glEnd();
+
+        // Draw content for column 2
+        if (i < column2.size()) {
+            glRasterPos2f(column2X + 5, currentY - cellHeight / 2); // Add padding for text
+            for (char c : column2[i]) {
+                glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
             }
         }
 
@@ -761,167 +999,203 @@ void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vec
     }
 }
 
+void setWindowIcon(const char* iconPath) {
+    // Load the icon from the given file path
+    HICON hIcon = (HICON)LoadImage(NULL, iconPath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+
+    // Set the window icon
+    SendMessage(GetActiveWindow(), WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+}
 
 void introScreen() {
-    drawText("Hello and welcome to this MSc project by Jildert Turkstra. We are glad to have you here and hope you will have a nice experience. In case of any problems, be sure to contact Jildert via email: j.turkstra@student.tue.nl. Please select the Assignment number:",
-    900, 800, 400);
+    glEnable(GL_LIGHTING); // Enable to show image becomes black
+    glEnable(GL_LIGHT0); // Enable to prevent image becomes black
 
-    drawButton("Assignment 1", 800, 650, 200, 50, changeScreen, 1);
-    drawButton("Assignment 2", 800, 580, 200, 50, changeScreen, 1);
-    drawButton("Assignment 3", 800, 510, 200, 50, changeScreen, 1);
-    drawButton("Assignment 4", 800, 440, 200, 50, changeScreen, 1);
+    float picWidth = screenWidth / 1.28f; // Width of the picture as specified.
+    float picHeight = screenHeight;
+    displayTexture(imgVilla, 0, 0, picWidth, picHeight);
 
-    drawUndoRedoButtons();
+    glDisable(GL_LIGHTING); //Disbale for other GUI elements
+    glDisable(GL_LIGHT0); //Disbale for other GUI elements
 
-    // Draw the "Next step" button in the bottom right corner
-    drawButton("-> | Next step", 1590, 50, 200, 50, changeScreen, 1);
+    // Draw the title
+    drawText("Simulation of Co-evolutionary Design Processes", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+    drawText("You are about to start an assignment involving a simulation of co-evolutionary design processes. You will start with a building spatial design from the villa to the left. You will optimize this spatial design by adpating the spatial design, based on the structural model.", startText, 900, textWidth, 0.0f, 0.0f, 0.0f);
+
+    drawText("Please read the instructions carefully at the top of each screen. If you have any questions, please raise your hand.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
+
+    drawButton("Start assignment", startText, 80, textWidth, 50, changeScreen, 1);
 }
 
-void mainScreen() {
-    //drawBuilding();
 
-    glColor3f(0.0, 0.0, 0.0);
-    glBegin(GL_LINES);
-    glVertex2f(1400.0f, 0.0f);
-    glVertex2f(1400.0f, screenHeight);
-    glEnd();
 
-    // Draw the message at the bottom of the structure illustration
-    drawText("Initial building spatial design", 1550, 950, 250);
-    drawText("This is your initial building spatial design. This is the starting point of the exercise. You can rotate and change the view of the model to get familiar with the design.", 1550, 850, 250);
+void buildingSpatialScreen() {
+    drawText("Building spatial design", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+    drawText("This is your building spatial design. You can rotate the model to get familiar with the design. Each space is identified by an unique number. If you are ready, you can move on by clicking the continue button.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
 
-    // Draw the "Next step" button in the bottom right corner
-    drawButton("-> | Next step", 1590, 50, 200, 50, changeScreen, 2);
+    drawButton("Continue", startText, 80, textWidth, 50, changeScreen, 2);
+
+    std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+    drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 }
 
-void assignmentDescriptionScreen() {
-    //drawBuilding();
+void structuralModelScreen() {
+    drawText("Structural design", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+    drawText("You are asked to create a structural design for the building spatial design. Each space is identified by a unique number. Subsequently, each rectangle beloninging to a space is identified by a letter. Your task is to assign a structural type to each rectangle. You can choose between:", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
 
-    glColor3f(0.0, 0.0, 0.0);
-    glBegin(GL_LINES);
-    glVertex2f(1400.0f, 0.0f);
-    glVertex2f(1400.0f, screenHeight);
-    glEnd();
+    GLfloat emissionColor[4] = {1.0f, 1.0f, 1.0f, 1.0f}; // Emit the texture's color
+    glMaterialfv(GL_FRONT, GL_EMISSION, emissionColor); // Apply to front face
 
-    // Draw the message at the bottom of the structure illustration
-    drawText("Structural design", 1550, 950, 250);
-    drawText("You are asked to create a structural design for the building spatial design. Each space is identified by a unique number. Please assign a structural type to each space in the table below. You can choose between 2 types:\n\n- Box structure 6 shells creating a box\n\n- Table structure4 columns with a shell below and on top", 1550, 850, 250);
+    float picWidth = textWidth;
+    float picHeight = 136;
+    displayTexture(imgElements, startText, 700, picWidth, picHeight);
 
-    drawText("Box structure", 1480, 600, 100);
-    drawText("Table structure", 1670, 600, 100);
+    GLfloat defaultEmission[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    glMaterialfv(GL_FRONT, GL_EMISSION, defaultEmission);
 
-    drawText("Once you are finished, please continue below.", 1580, 200, 300);
+    drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
 
+    drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 3);
 
-    // Draw the "Next step" button in the bottom right corner
-    drawButton("View structural design", 1520, 50, 200, 50, changeScreen, 3);
+    std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+    drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 }
 
-void rectangleSelectionScreen() {
-    glColor3f(0.0, 0.0, 0.0);
-    glBegin(GL_LINES);
-    glVertex2f(1400.0f, 0.0f);
-    glVertex2f(1400.0f, screenHeight);
-    glEnd();
+void structuralModelFloor1Screen() {
+    drawText("Structural design floor 1", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+    drawText("You are asked to create a structural design for the building spatial design. Each space is identified by a unique number. Please assign a structural type to each space in the table below. You can choose between 2 types:\n\n- Box structure 6 shells creating a box\n\n- Table structure4 columns with a shell below and on top", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
 
-    std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F"};
+    drawText("Box structure", 1480, 600, 100, 0.0f, 0.0f, 0.0f);
+    drawText("Table structure", 1670, 600, 100, 0.0f, 0.0f, 0.0f);
 
-    std::vector<std::string> rectangles;
+    drawTwoColumnTable(1450, 300, 300, 30, {"Space ID", "1", "2", "3", "4", "5"}, {"Structural element", "Box", "Table", "Box", "Table", "Table"});
 
-    std::set<bso::utilities::geometry::vertex> createdLabels;
-	
-	for (const auto& i : MS)
-	{
-        std::string rectangle;
-	
-		bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
-        
-		
-        for(int j = 0; j < 4; ++j)
-        {
-            rectangle = std::to_string(i->getID()) + surfaceLetters[j];
-            auto tempSurface = spaceGeometry.getPolygons()[j];
-            auto surfaceCenter = tempSurface->getCenter();
-            if(createdLabels.find(surfaceCenter) == createdLabels.end())
-            {
-                rectangles.push_back(rectangle);
-                createdLabels.insert(surfaceCenter);
-            }
-            rectangle = "";
+    drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
 
-            rectanglesGeometry.push_back(spaceGeometry.getPolygons()[j]);
-        }
+    drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 4);
+
+    std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+    drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
+}
+
+void structuralModelFloor23Screen() {
+    drawText("Structural design floor 2 & 3", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+    drawText("You are asked to create a structural design for the building spatial design. Each space is identified by a unique number. Please assign a structural type to each space in the table below. You can choose between 2 types:\n\n- Box structure 6 shells creating a box\n\n- Table structure4 columns with a shell below and on top", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
+
+    drawText("Box structure", 1480, 600, 100, 0.0f, 0.0f, 0.0f);
+    drawText("Table structure", 1670, 600, 100, 0.0f, 0.0f, 0.0f);
+
+    drawTwoColumnTable(1450, 300, 300, 30, {"Space ID", "1", "2", "3", "4", "5"}, {"Structural element", "Box", "Table", "Box", "Table", "Table"});
+
+    drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
+
+    drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 5);
+
+    std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+    drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
+}
+
+void removeSpaceScreen() {
+    drawText("Space removal", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+    drawText("You are asked to remove a maximum of 1 space. Please think aloud why you choose to remove this space.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
+
+    if (deletionConfirmed) {
+        // Draw the message indicating the space has been deleted
+        drawText("Space deleted successfully. Click 'Continue' to proceed.", startText, 400, textWidth, 0.0f, 0.0f, 0.0f);
+
+        // Draw the "Continue" button
+        drawButton("Continue", startText, 80, textWidth, 50, changeScreen, 6);
+    } else if (!inputFieldDisabled) {
+        // Render the input field only if it's not disabled
+        drawText("Please enter the space ID below to remove", startText, 600, textWidth, 0.0f, 0.0f, 0.0f);
+        drawTextField(startText, 500, textWidth, 25, removeSpace);
     }
 
-    drawFourColumnTable(1450, 150, 300, 20, rectangles);
+    // Check and display error message below the text field if there's an error
+    if (spaceInputError) {
+        bool isConfirmation = spaceInputErrorMessage == "Press Y to confirm, N to cancel.";
 
+        float r = isConfirmation ? 0.0f : 1.0f; // Blue for confirmation, red for error
+        float g = 0.0f;
+        float b = isConfirmation ? 1.0f : 0.0f;
 
-    // Draw the "Next step" button in the bottom right corner
-    drawButton("View structural design", 1520, 50, 200, 50, changeScreen, 4);
-}
-
-void screen3() {
-    //drawBuilding();
-
-    glColor3f(0.0, 0.0, 0.0);
-    glBegin(GL_LINES);
-    glVertex2f(1400.0f, 0.0f);
-    glVertex2f(1400.0f, screenHeight);
-    glEnd();
-
-    std::string removed_text = std::to_string(removed_space_counter) + "/2";
-    const char* cStyleString = removed_text.c_str();
-
-    drawText(cStyleString, 1850, 950, 250);
-
-    // Draw the message at the bottom of the structure illustration
-    drawText("Space removal", 1550, 950, 250);
-    drawText("You are asked to remove a maximum of 2 spaces. Please remove the spaces which performs worst in terms of structural performance; i.e. strain energy.\n\nAt the top left corner, you can switch the view.", 1550, 850, 250);
-
-    drawText("Please enter the space ID to remove", 1550, 600, 250);
-    drawTextField(1480, 500, 100, 50, spaceTF);
-
-
-
-    // Draw the "Next step" button in the bottom right corner
-    if(checkIfRemovePossible()) {
-        drawButton("Remove another space", 1520, 50, 200, 50, removeSpace, 4);
-    } else {
-        drawButton("View new spatial design", 1450, 50, 300, 50, removeSpace, 4);
+        drawText(spaceInputErrorMessage.c_str(), startText, 400, textWidth, r, g, b);
     }
+
+    std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+    drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 }
+
 
 void splitSpaceScreen() {
-    //drawBuilding();
+    drawText("Space splitting", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+    drawText("You are asked to split a maximum of 1 space. Please think aloud why you choose to split this space.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
 
-    glColor3f(0.0, 0.0, 0.0);
-    glBegin(GL_LINES);
-    glVertex2f(1400.0f, 0.0f);
-    glVertex2f(1400.0f, screenHeight);
-    glEnd();
-
-    std::string removed_text = std::to_string(split_space_counter) + "/2";
-    const char* cStyleString = removed_text.c_str();
-
-    drawText(cStyleString, 1850, 950, 250);
-
-    // Draw the message at the bottom of the structure illustration
-    drawText("Space splitting", 1550, 950, 250);
-    drawText("Now you are asked to split a maximum of 2 spaces. Please split the spaces which performs worst in terms of structural performance; i.e. strain energy.\n\nAt the top left corner, you can switch the view.", 1550, 850, 250);
-
-    drawText("Please enter the space ID to split", 1550, 600, 250);
-    drawTextField(1480, 500, 100, 50, splitTF);
-
-    // Draw the "Next step" button in the bottom right corner
-    if(checkIfSplitPossible()) {
-        drawButton("Split another space", 1520, 50, 200, 50, splitSpace, 5);
-    } else {
-        drawButton("View new spatial design", 1450, 50, 300, 50, splitSpace, 6);
+    if (splittingConfirmed) {
+        // Draw the message indicating the space has been deleted
+        drawText("Space split successfully. Click 'Continue' to proceed.", startText, 400, textWidth, 0.0f, 0.0f, 0.0f);
+        drawButton("Continue", startText, 80, textWidth, 50, changeScreen, 7);
+        }
+    else if (!inputFieldDisabled) {
+        // Render the input field only if it's not disabled
+        drawText("Please enter the space ID below to split", startText, 600, textWidth, 0.0f, 0.0f, 0.0f);
+        drawTextField(startText, 500, textWidth, 25, splitSpace);
     }
+
+    // Check and display error message below the text field if there's an error
+    if (spaceInputError) {
+        bool isConfirmation = spaceInputErrorMessage == "Press Y to confirm, N to cancel.";
+
+        float r = isConfirmation ? 0.0f : 1.0f; // Blue for confirmation, red for error
+        float g = 0.0f;
+        float b = isConfirmation ? 1.0f : 0.0f;
+
+        drawText(spaceInputErrorMessage.c_str(), startText, 400, textWidth, r, g, b);
+    }
+    scalingCompleted = false;
+
+    std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+    drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 }
 
-void screen4() {
-    drawText("1. Did you like the assignment?", 400, 800, 400);
+
+void iterationCompleteScreen() {
+    // Check if scaling has been completed
+    if (!scalingCompleted) {
+        drawText("Iteration complete", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+        std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+        drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
+        drawText("You just completed an iteration. The building spatial model needs to be scaled to recover initial floor area. Press the button below to scale the model.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
+
+        drawButton("Scale model", startText, 500, textWidth, 50, [](int){
+            scaleModel(); // Perform scaling
+            scalingCompleted = true; // Update state
+            glutPostRedisplay(); // Trigger a redraw of the screen
+        }, 0);
+    } else {
+        // Adjust the message and button based on whether it's the final iteration
+        if (iteration_counter < max_iterations) {
+            // Not the final iteration yet
+            std::string nextIterationText = "Start iteration " + std::to_string(iteration_counter);
+            drawText("Model scaled successfully. Ready to start the next iteration.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
+            drawButton(nextIterationText.c_str(), startText, 80, textWidth, 50, [](int){ changeScreen(1); }, 0);
+        } else {
+            // This is the final iteration
+            drawText("You have completed the final iteration. Congratulations!", 1550, 850, 250, 0.0f, 0.0f, 0.0f);
+            drawButton("Conclude", startText, 80, textWidth, 50, [](int){ changeScreen(8); }, 0);
+        }
+    }
+    deletionConfirmed = false;
+    splittingConfirmed = false;
+    removeSpace.text = "";
+    splitSpace.text = "";
+
+    writeToProcessFile("processLog.csv");
+}
+
+
+void surveyScreen() {
+    drawText("1. Did you like the assignment?", 400, 800, 400, 0.0f, 0.0f, 0.0f);
     drawButton("1", 300, 750, 50, 30, buttonClicked, 1);
     drawButton("2", 350, 750, 50, 30, buttonClicked, 1);
     drawButton("3", 400, 750, 50, 30, buttonClicked, 1);
@@ -933,8 +1207,8 @@ void screen4() {
     drawButton("9", 700, 750, 50, 30, buttonClicked, 1);
     drawButton("10", 750, 750, 50, 30, buttonClicked, 1);
 
-    drawText("Please explain:", 300, 630, 200);
-    drawTextField(300, 400, 300, 200, splitTF);
+    drawText("Please explain:", 300, 630, 200, 0.0f, 0.0f, 0.0f);
+    drawTextField(300, 400, 300, 200, explanation);
 
     glColor3f(0.0, 0.0, 0.0);
     glBegin(GL_LINES);
@@ -942,7 +1216,7 @@ void screen4() {
     glVertex2f(1400.0f, screenHeight); // End point of the line at the bottom
     glEnd();
 
-    drawButton("-> | Next", 1590, 50, 200, 50, buttonClicked, 1);
+    drawButton("Next", 1590, 50, 200, 50, buttonClicked, 1);
 }
 
 int main(int argc, char** argv) {
@@ -950,7 +1224,13 @@ int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(screenWidth, screenHeight);
-    glutCreateWindow("Menu Interface");
+    glutCreateWindow("Design studio: Simulation of Co-evolutionary Design Processes");
+    glutFullScreen(); // Make the window fullscreen right from the start
+
+    initializeTextures();
+
+    // Set window icon
+    setWindowIcon("TUE.ico");
 
     // Set callback functions
     glutDisplayFunc(display);
