@@ -58,7 +58,9 @@ namespace bso { namespace structural_design { namespace component {
 		const std::vector<element::element*>& getElements() const {return mElements;}
 		const std::vector<structure>& getStructures() const {return mStructures;} 
 		const std::vector<load>& getLoads() const {return mLoads;}
-		const std::vector<constraint>& getConstraints() const {return mConstraints;}	
+		const std::vector<constraint>& getConstraints() const {return mConstraints;}
+		// const std::vector<vertex>& getVertices() const {return mVertices;}
+		// void printVertices() { for (auto& v : mVertices) std::cout << v << std::endl; }
 	};
 	
 } // namespace component

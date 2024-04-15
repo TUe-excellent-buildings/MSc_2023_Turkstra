@@ -19,6 +19,8 @@ namespace bso { namespace structural_design { namespace component {
 		
 		void addStructure(const structure& s);
 		void mesh(const unsigned int& n, std::vector<point*>& point_store);
+		void printVertices() { for (auto& v : mVertices) std::cout << v << std::endl; }
+		const bso::utilities::geometry::vertex* getVertices() const {return mVertices;}
 	};
 	
 } // namespace component

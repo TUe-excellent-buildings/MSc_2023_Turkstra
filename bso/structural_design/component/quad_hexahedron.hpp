@@ -23,6 +23,7 @@ namespace bso { namespace structural_design { namespace component {
 							const unsigned int& v2Index, const unsigned int& n1,
 							const unsigned int& n2, const unsigned int& n3,
 							std::vector<point*>& pointStore);
+		std::vector<bso::utilities::geometry::vertex> getVertices() const {return mVertices;}
 	};
 	
 } // namespace component

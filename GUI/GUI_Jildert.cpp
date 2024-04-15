@@ -15,7 +15,7 @@
 #include <bso/building_physics/bp_model.hpp>
 #include <bso/grammar/grammar.hpp>
 #include <bso/visualization/visualization.hpp>
-#include <bso/grammar/sd_grammars/design_horizontal.cpp>
+#include <bso/grammar/sd_grammars/default_sd_grammar.cpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -27,6 +27,9 @@ bool visualizationActive = true;
 bso::visualization::viewportmanager vpmanager_local;
 bso::visualization::orbitalcamera   cam_local;
 int prevx, prevy;
+
+std::vector<int> tableClicked;
+bool tableInitialized = false;
 
 typedef void (*ButtonCallback)(int);
 
@@ -41,10 +44,8 @@ double etaNoise = 0.1;
 int etaConverge = 1;
 std::string checkingOrder = "321";
 
-// bso::spatial_design::ms_building MS("../SCDP/designs/design_4");
-// bso::spatial_design::cf_building CF(MS);
 bso::grammar::grammar grm(CF);
-bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_HORIZONTAL>(std::string("settings/sd_settings.txt"),etaBend,etaAx,etaShear,etaNoise,etaConverge,checkingOrder,trussStructure,beamStructure,flatShellStructure,substituteStructure);
+bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DEFAULT_SD_GRAMMAR>(std::string("settings/sd_settings.txt"), true);
 
 struct Button {
     float x, y, width, height;
@@ -880,24 +881,154 @@ std::vector<bso::structural_design::component::geometry*> cleanGeometry(std::vec
     return rectgeoms;
 }
 
+std::vector<bso::structural_design::component::quadrilateral*> allQuads(std::vector<bso::structural_design::component::geometry*> geom) {
+    std::vector<bso::structural_design::component::quadrilateral*> quads;
+    for(auto g : geom) {
+        if(g->isQuadrilateral()) {
+            bso::structural_design::component::quadrilateral* quad = dynamic_cast<bso::structural_design::component::quadrilateral*>(g);
+            quads.push_back(quad);
+        }
+    }
+    return quads;
+}
+
+std::vector<bso::structural_design::component::line_segment*> allLines(std::vector<bso::structural_design::component::geometry*> geom) {
+    std::vector<bso::structural_design::component::line_segment*> lines;
+    for(auto g : geom) {
+        if(g->isLineSegment()) {
+            bso::structural_design::component::line_segment* line = dynamic_cast<bso::structural_design::component::line_segment*>(g);
+            lines.push_back(line);
+        }
+    }
+    return lines;
+}
+
+
+std::vector<bso::structural_design::component::quad_hexahedron*> allHexahedrons(std::vector<bso::structural_design::component::geometry*> geom) {
+    std::vector<bso::structural_design::component::quad_hexahedron*> hexahedrons;
+    for(auto g : geom) {
+        if(g->isQuadHexahedron()) {
+            bso::structural_design::component::quad_hexahedron* h = dynamic_cast<bso::structural_design::component::quad_hexahedron*>(g);
+            hexahedrons.push_back(h);
+        }
+    }
+    return hexahedrons;
+}
+
+
+
+void printPoints(bso::structural_design::component::geometry* geom) {
+    if(geom->isQuadrilateral()) {
+        bso::structural_design::component::quadrilateral* quad = dynamic_cast<bso::structural_design::component::quadrilateral*>(geom);
+        quad->printVertices();
+    }
+}
+
+std::vector<bso::structural_design::component::line_segment*> findMatchingLineSegments(
+    bso::structural_design::component::quadrilateral* quad,
+    const std::vector<bso::structural_design::component::line_segment*>& lineSegments) {
+
+    std::vector<bso::structural_design::component::line_segment*> matchingLines;
+    std::vector<bso::utilities::geometry::vertex> quadVertices = quad->getVertices();
+
+    for (auto& line : lineSegments) {
+        const bso::utilities::geometry::vertex* lineVertices = line->getVertices();
+
+        // Check if either of the line segment's vertices matches any of the quadrilateral's vertices
+        bool matchesV1 = std::find_if(quadVertices.begin(), quadVertices.end(),
+                                      [lineVertices](const bso::utilities::geometry::vertex& v) { return v == lineVertices[0]; }) != quadVertices.end();
+        bool matchesV2 = std::find_if(quadVertices.begin(), quadVertices.end(),
+                                      [lineVertices](const bso::utilities::geometry::vertex& v) { return v == lineVertices[1]; }) != quadVertices.end();
+
+        if (matchesV1 || matchesV2) {
+            matchingLines.push_back(line);
+        }
+    }
+
+    return matchingLines;
+}
+
+std::vector<bso::structural_design::component::line_segment*> getLineSegments(
+    bso::structural_design::component::quad_hexahedron* quadHex) {
+    
+    // Retrieve vertices from the quad_hexahedron
+    std::vector<bso::utilities::geometry::vertex> vertices = quadHex->getVertices();
+    if (vertices.size() != 8) {
+        throw std::runtime_error("Expected 8 vertices for a quad_hexahedron.");
+    }
+
+    // Define the pairs of vertex indices that form the edges of the hexahedron
+    std::vector<std::pair<int, int>> edgePairs = {
+        {0, 1}, {1, 2}, {2, 3}, {3, 0},
+        {4, 5}, {5, 6}, {6, 7}, {7, 4},
+        {0, 4}, {1, 5}, {2, 6}, {3, 7}
+    };
+
+    std::vector<bso::structural_design::component::line_segment*> lineSegments;
+
+    // Create a line segment for each pair of vertices
+    for (auto& pair : edgePairs) {
+        auto vertex1 = vertices[pair.first];
+        auto vertex2 = vertices[pair.second];
+        auto lineSegment = new bso::structural_design::component::line_segment({vertex1, vertex2});
+        lineSegments.push_back(lineSegment);
+    }
+
+    return lineSegments;
+}
+
+std::vector<bso::structural_design::component::quadrilateral*> findQuadrilateralsInQuadHexahedron(
+    const std::vector<bso::structural_design::component::quadrilateral*>& allQuadrilaterals,
+    bso::structural_design::component::quad_hexahedron* quadHex) {
+
+    std::vector<bso::structural_design::component::quadrilateral*> includedQuads;
+    std::vector<bso::structural_design::component::line_segment*> hexLineSegments = getLineSegments(quadHex);
+
+    for (auto& quad : allQuadrilaterals) {
+        std::vector<bso::structural_design::component::line_segment*> matchingLines = findMatchingLineSegments(quad, hexLineSegments);
+
+        if (matchingLines.size() == 4) {
+            includedQuads.push_back(quad);
+        }
+    }
+
+    return includedQuads;
+}
+
 void handleCellClick(int clickedRow, int clickedColumn) {
     int space = clickedRow / 4;
 
     std::vector<bso::structural_design::component::geometry*> allgeoms = SD_model.getGeometries();
-    std::vector<bso::structural_design::component::geometry*> rectgeoms = cleanGeometry(allgeoms);
+    std::vector<bso::structural_design::component::quadrilateral*> rectgeoms = allQuads(allgeoms);
+    std::vector<bso::structural_design::component::line_segment*> lines = allLines(allgeoms);
+
+    // rectgeoms[clickedRow]->setMaterial(beamMaterial);
 
     std::cout << "Cell clicked" << clickedRow << clickedColumn << std::endl;
 
     if(clickedColumn == 1) {
-        rectgeoms[clickedRow]->addStructure(trussStructure);
+        std::vector<bso::structural_design::component::line_segment*> matchingLines = findMatchingLineSegments(rectgeoms[space], lines);
+        for(auto line : matchingLines) {
+            // line->setMaterial(trussMaterial);
+            line->addStructure(trussStructure);
+        }
         std::cout << "Truss structure added to rectangle " << clickedRow << std::endl;
     } else if(clickedColumn == 2) {
-        rectgeoms[clickedRow]->addStructure(beamStructure);
+        std::vector<bso::structural_design::component::line_segment*> matchingLines = findMatchingLineSegments(rectgeoms[space], lines);
+        for(auto line : matchingLines) {
+            // line->setMaterial(beamMaterial);
+            line->addStructure(beamStructure);
+        }
         std::cout << "Beam structure added to rectangle " << clickedRow << std::endl;
     } else if(clickedColumn == 3) {
         rectgeoms[clickedRow]->addStructure(flatShellStructure);
+        // printPoints(rectgeoms[clickedRow]);
         std::cout << "Flat shell structure added to rectangle " << clickedRow << std::endl;
     }
+
+    if(clickedColumn != 0) tableClicked[clickedRow] = clickedColumn;
+
+    changeScreen(3);
 }
 
 void onMouseClick(int button, int state, int x, int y) {
@@ -930,7 +1061,7 @@ void onMouseClick(int button, int state, int x, int y) {
             int numRows = 40;
             int columnWidth = width / 4;
 
-            int clickedRow = (y + numRows * cellHeight - mouseY) / cellHeight;
+            int clickedRow = (y + numRows * cellHeight - mouseY) / cellHeight - 1;
             int clickedColumn = (mouseX - x) / columnWidth;
 
             if (clickedRow >= 0 && clickedRow < numRows && clickedColumn >= 0 && clickedColumn < 4) {
@@ -1022,7 +1153,7 @@ void drawTextField(int x, int y, int width, int height, TextField& textfield) {
 }
 
 
-void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1) {
+void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, std::vector<int> clickedOption) {
     size_t numRows = column1.size();
 
     int tableHeight = numRows * cellHeight;
@@ -1046,6 +1177,17 @@ void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vec
                 glVertex2f(columnX, currentY);
                 glVertex2f(columnX, y);
                 glEnd();
+            }
+
+            if (i < clickedOption.size() && col == clickedOption[i] && clickedOption[i] > 0 && clickedOption[i] < 4) {
+                glColor3f(1.0, 1.0, 0.8);
+                glBegin(GL_QUADS);
+                glVertex2f(columnX, currentY);
+                glVertex2f(columnX + columnWidth, currentY);
+                glVertex2f(columnX + columnWidth, currentY - cellHeight);
+                glVertex2f(columnX, currentY - cellHeight);
+                glEnd();
+                glColor3f(0.0, 0.0, 0.0); // Reset color to black for text and lines
             }
 
             if (i < column1.size()) {
@@ -1138,24 +1280,90 @@ void structuralModelScreen() {
     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 }
 
+// void structuralModelFloor1Screen() {
+//     std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F", "H", "J", "K", "L", "M"};
+
+//     std::vector<std::string> rectangles;
+
+//     std::set<bso::utilities::geometry::vertex> createdLabels;
+
+// 	for (const auto& i : MS)
+// 	{
+//         std::string rectangle;
+
+// 		bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
+
+
+//         for(int j = 0; j < 4; ++j)
+//         {
+//             rectangle = std::to_string(i->getID()) + surfaceLetters[j];
+//             auto tempSurface = spaceGeometry.getPolygons()[j];
+//             auto surfaceCenter = tempSurface->getCenter();
+//             if(createdLabels.find(surfaceCenter) == createdLabels.end())
+//             {
+//                 rectangles.push_back(rectangle);
+//                 createdLabels.insert(surfaceCenter);
+//             }
+//             rectangle = "";
+
+//             rectanglesGeometry.push_back(spaceGeometry.getPolygons()[j]);
+//         }
+//     }
+
+//     std::vector<std::string> rectangles2;
+//     for (const auto& i : SD_model.getGeometries())
+//     {
+//         if(i->isQuadrilateral()) {
+//             rectangles2.push_back("1");
+//         }
+//     }
+//     std::cout << rectangles2.size() << std::endl;
+
+//     if(!tableInitialized){
+//         tableClicked = std::vector<int>(rectangles.size(), 0);
+//         tableInitialized = true;
+//     }
+
+//     drawFourColumnTable(1550, 150, 300, 20, rectangles, tableClicked);
+
+//     drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
+
+//     drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 6);
+
+//     std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+//     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
+// }
+
 void structuralModelFloor1Screen() {
-    std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F"};
+    std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F", "H", "J", "K", "L", "M"};
 
     std::vector<std::string> rectangles;
 
     std::set<bso::utilities::geometry::vertex> createdLabels;
 
-	for (const auto& i : MS)
+    std::vector<bso::structural_design::component::geometry*> allgeoms = SD_model.getGeometries();
+    std::vector<bso::structural_design::component::quad_hexahedron*> spacegeoms = allHexahedrons(allgeoms);
+    std::vector<bso::structural_design::component::quadrilateral*> quads = allQuads(allgeoms);
+
+    int k = 1;
+
+    std::cout << "allgeoms size: " << allgeoms.size() << std::endl;
+    std::cout << "spacegeoms size: " << spacegeoms.size() << std::endl;
+
+	for (const auto& i : spacegeoms)
 	{
         std::string rectangle;
 
-		bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
+		// bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
 
+        std::vector<bso::structural_design::component::quadrilateral*> space_quads = findQuadrilateralsInQuadHexahedron(quads, i);
 
-        for(int j = 0; j < 4; ++j)
+        std::cout << space_quads.size() << std::endl;
+
+        for(int j = 0; j < space_quads.size(); ++j)
         {
-            rectangle = std::to_string(i->getID()) + surfaceLetters[j];
-            auto tempSurface = spaceGeometry.getPolygons()[j];
+            rectangle = std::to_string(k) + surfaceLetters[j];
+            auto tempSurface = space_quads[j];
             auto surfaceCenter = tempSurface->getCenter();
             if(createdLabels.find(surfaceCenter) == createdLabels.end())
             {
@@ -1164,11 +1372,20 @@ void structuralModelFloor1Screen() {
             }
             rectangle = "";
 
-            rectanglesGeometry.push_back(spaceGeometry.getPolygons()[j]);
+            rectanglesGeometry.push_back(space_quads[j]);
         }
+        k++;
     }
 
-    drawFourColumnTable(1550, 150, 300, 20, rectangles);
+    std::cout << "Rectangles size: " << rectangles.size() << std::endl;
+    std::cout << k << std::endl;
+
+    if(!tableInitialized){
+        tableClicked = std::vector<int>(rectangles.size(), 0);
+        tableInitialized = true;
+    }
+
+    drawFourColumnTable(1550, 150, 300, 20, rectangles, tableClicked);
 
     drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
 
