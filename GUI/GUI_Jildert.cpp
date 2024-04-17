@@ -940,7 +940,7 @@ std::vector<bso::structural_design::component::line_segment*> findMatchingLineSe
         bool matchesV2 = std::find_if(quadVertices.begin(), quadVertices.end(),
                                       [lineVertices](const bso::utilities::geometry::vertex& v) { return v == lineVertices[1]; }) != quadVertices.end();
 
-        if (matchesV1 || matchesV2) {
+        if (matchesV1 && matchesV2) {
             matchingLines.push_back(line);
         }
     }
@@ -949,10 +949,10 @@ std::vector<bso::structural_design::component::line_segment*> findMatchingLineSe
 }
 
 std::vector<bso::structural_design::component::line_segment*> getLineSegments(
-    bso::structural_design::component::quad_hexahedron* quadHex) {
+    bso::utilities::geometry::quad_hexahedron quadHex) {
     
     // Retrieve vertices from the quad_hexahedron
-    std::vector<bso::utilities::geometry::vertex> vertices = quadHex->getVertices();
+    std::vector<bso::utilities::geometry::vertex> vertices = quadHex.getVertices();
     if (vertices.size() != 8) {
         throw std::runtime_error("Expected 8 vertices for a quad_hexahedron.");
     }
@@ -967,11 +967,16 @@ std::vector<bso::structural_design::component::line_segment*> getLineSegments(
     std::vector<bso::structural_design::component::line_segment*> lineSegments;
 
     // Create a line segment for each pair of vertices
-    for (auto& pair : edgePairs) {
-        auto vertex1 = vertices[pair.first];
-        auto vertex2 = vertices[pair.second];
-        auto lineSegment = new bso::structural_design::component::line_segment({vertex1, vertex2});
-        lineSegments.push_back(lineSegment);
+     for (int i = 0; i < vertices.size(); i++) {
+        for (int j = i + 1; j < vertices.size(); j++) {
+            if(i == j) continue;
+            auto vertex1 = vertices[i];
+            auto vertex2 = vertices[j];
+            auto lineSegment = new bso::structural_design::component::line_segment({vertex1, vertex2});
+            lineSegments.push_back(lineSegment);
+            lineSegment = new bso::structural_design::component::line_segment({vertex2, vertex1});
+            //lineSegments.push_back(lineSegment);
+     }
     }
 
     return lineSegments;
@@ -979,13 +984,17 @@ std::vector<bso::structural_design::component::line_segment*> getLineSegments(
 
 std::vector<bso::structural_design::component::quadrilateral*> findQuadrilateralsInQuadHexahedron(
     const std::vector<bso::structural_design::component::quadrilateral*>& allQuadrilaterals,
-    bso::structural_design::component::quad_hexahedron* quadHex) {
+    bso::utilities::geometry::quad_hexahedron quadHex) {
 
     std::vector<bso::structural_design::component::quadrilateral*> includedQuads;
     std::vector<bso::structural_design::component::line_segment*> hexLineSegments = getLineSegments(quadHex);
 
+    std::cout << "Line segments: " << hexLineSegments.size() << std::endl;
+    std::cout << "All quadrilaterals: " << allQuadrilaterals.size() << std::endl;
+
     for (auto& quad : allQuadrilaterals) {
         std::vector<bso::structural_design::component::line_segment*> matchingLines = findMatchingLineSegments(quad, hexLineSegments);
+        std::cout << "Matching lines: " << matchingLines.size() << std::endl;
 
         if (matchingLines.size() == 4) {
             includedQuads.push_back(quad);
@@ -1334,6 +1343,26 @@ void structuralModelScreen() {
 //     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 // }
 
+std::vector<bso::structural_design::component::quadrilateral*> newFindQuadsInHex(bso::utilities::geometry::quad_hexahedron spaceGeometry, std::vector<bso::structural_design::component::quadrilateral*> quads) {
+    std::vector<bso::structural_design::component::quadrilateral*> space_quads;
+    std::vector<bso::utilities::geometry::vertex> spaceVertices = spaceGeometry.getVertices();
+
+    for(auto quad : quads) {
+        std::vector<bso::utilities::geometry::vertex> quadVertices = quad->getVertices();
+        int count = 0;
+        for(auto vertex : quadVertices) {
+            if(std::find(spaceVertices.begin(), spaceVertices.end(), vertex) != spaceVertices.end()) {
+                count++;
+            }
+        }
+        if(count == 4) {
+            space_quads.push_back(quad);
+        }
+    }
+
+    return space_quads;
+}
+
 void structuralModelFloor1Screen() {
     std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F", "H", "J", "K", "L", "M"};
 
@@ -1350,13 +1379,14 @@ void structuralModelFloor1Screen() {
     std::cout << "allgeoms size: " << allgeoms.size() << std::endl;
     std::cout << "spacegeoms size: " << spacegeoms.size() << std::endl;
 
-	for (const auto& i : spacegeoms)
+	for (const auto& i : MS)
 	{
         std::string rectangle;
 
-		// bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
+        bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
 
-        std::vector<bso::structural_design::component::quadrilateral*> space_quads = findQuadrilateralsInQuadHexahedron(quads, i);
+        //std::vector<bso::structural_design::component::quadrilateral*> space_quads = findQuadrilateralsInQuadHexahedron(quads, spaceGeometry);
+        std::vector<bso::structural_design::component::quadrilateral*> space_quads = newFindQuadsInHex(spaceGeometry, quads);
 
         std::cout << space_quads.size() << std::endl;
 
