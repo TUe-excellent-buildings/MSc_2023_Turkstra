@@ -1300,60 +1300,6 @@ void structuralModelScreen() {
     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 }
 
-// void structuralModelFloor1Screen() {
-//     std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F", "H", "J", "K", "L", "M"};
-
-//     std::vector<std::string> rectangles;
-
-//     std::set<bso::utilities::geometry::vertex> createdLabels;
-
-// 	for (const auto& i : MS)
-// 	{
-//         std::string rectangle;
-
-// 		bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
-
-
-//         for(int j = 0; j < 4; ++j)
-//         {
-//             rectangle = std::to_string(i->getID()) + surfaceLetters[j];
-//             auto tempSurface = spaceGeometry.getPolygons()[j];
-//             auto surfaceCenter = tempSurface->getCenter();
-//             if(createdLabels.find(surfaceCenter) == createdLabels.end())
-//             {
-//                 rectangles.push_back(rectangle);
-//                 createdLabels.insert(surfaceCenter);
-//             }
-//             rectangle = "";
-
-//             rectanglesGeometry.push_back(spaceGeometry.getPolygons()[j]);
-//         }
-//     }
-
-//     std::vector<std::string> rectangles2;
-//     for (const auto& i : SD_model.getGeometries())
-//     {
-//         if(i->isQuadrilateral()) {
-//             rectangles2.push_back("1");
-//         }
-//     }
-//     std::cout << rectangles2.size() << std::endl;
-
-//     if(!tableInitialized){
-//         tableClicked = std::vector<int>(rectangles.size(), 0);
-//         tableInitialized = true;
-//     }
-
-//     drawFourColumnTable(1550, 150, 300, 20, rectangles, tableClicked);
-
-//     drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
-
-//     drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 6);
-
-//     std::string iterationText = "Iteration " + std::to_string(iteration_counter);
-//     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
-// }
-
 std::vector<bso::structural_design::component::quadrilateral*> newFindQuadsInHex(bso::utilities::geometry::quad_hexahedron spaceGeometry, std::vector<bso::structural_design::component::quadrilateral*> quads) {
     std::vector<bso::structural_design::component::quadrilateral*> space_quads;
     std::vector<bso::utilities::geometry::vertex> spaceVertices = spaceGeometry.getVertices();
@@ -1372,6 +1318,18 @@ std::vector<bso::structural_design::component::quadrilateral*> newFindQuadsInHex
     }
 
     return space_quads;
+}
+
+bool isVertical(bso::structural_design::component::quadrilateral* quad) {
+    std::vector<bso::utilities::geometry::vertex> vertices = quad->getVertices();
+
+    double begCoord = vertices[0][2];
+
+    for(int i=1; i < vertices.size(); i++) {
+        if(begCoord != vertices[i][2]) return true;
+    }
+
+    return false;
 }
 
 void structuralModelFloor1Screen() {
@@ -1408,7 +1366,7 @@ void structuralModelFloor1Screen() {
             rectangle = std::to_string(k) + surfaceLetters[j];
             auto tempSurface = space_quads[j];
             auto surfaceCenter = tempSurface->getCenter();
-            if(createdLabels.find(surfaceCenter) == createdLabels.end())
+            if(createdLabels.find(surfaceCenter) == createdLabels.end() && isVertical(tempSurface))
             {
                 rectangles.push_back(rectangle);
                 createdLabels.insert(surfaceCenter);
