@@ -35,7 +35,7 @@ private:
 	random_bsp     *pbsp;
 public:
 	MS_Model(const spatial_design::ms_building& ms, const std::string& type = "spaces",
-					 const std::string& title = "ms_building", const double& linewidth = 1.0);
+					 const std::string& title = "ms_building", const double& linewidth = 1.0, bool rectangleID = false);
 	~MS_Model();
 	
 	void render(const camera &cam) const;
@@ -44,7 +44,7 @@ public:
 
 MS_Model::MS_Model(const spatial_design::ms_building& ms,
 						const std::string& type /*= "spaces"*/, const std::string& title /*= "ms_building"*/,
-						const double& linewidth /*= 1.0*/)
+						const double& linewidth /*= 1.0*/, bool rectangleID)
 {
 	lprops.width = linewidth;
 	mTitle = title;
@@ -85,7 +85,7 @@ MS_Model::MS_Model(const spatial_design::ms_building& ms,
 				centerLabelSide << i->getID() << surfaceLetters[j];
 				auto tempSurface = spaceGeometry.getPolygons()[j];
 				auto surfaceCenter = tempSurface->getCenter();
-				if(createdLabels.find(surfaceCenter) == createdLabels.end())
+				if(createdLabels.find(surfaceCenter) == createdLabels.end() && rectangleID)
 				{
 					this->addLabel(labels,&lbprops,centerLabelSide.str(), surfaceCenter);
 					createdLabels.insert(surfaceCenter);
@@ -146,8 +146,7 @@ MS_Model::MS_Model(const spatial_design::ms_building& ms,
 									 << "(bso/visualization/visualization/models/ms_building.hpp)" << std::endl;
 			throw std::runtime_error(errorMessage.str());
 		}
-		
-		this->addLabel(labels,&lbprops,centerLabel.str(),spaceGeometry.getCenter());
+		if(!rectangleID) this->addLabel(labels,&lbprops,centerLabel.str(),spaceGeometry.getCenter());
 	}
 
 	pbsp = new random_bsp(polygons);

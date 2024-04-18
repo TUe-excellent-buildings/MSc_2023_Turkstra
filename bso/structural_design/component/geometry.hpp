@@ -35,6 +35,7 @@ namespace bso { namespace structural_design { namespace component {
 		virtual ~geometry();
 		
 		virtual void addStructure(const structure& s);
+		virtual void removeStructure();
 		virtual void addLoad(const load& l);
 		virtual void addConstraint(const constraint& c);
 

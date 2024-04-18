@@ -153,6 +153,7 @@ SD_Model::SD_Model(const bso::structural_design::sd_model& sd,
 				}
 				else if (j.type() == "flat_shell")
 				{
+					// continue;
 					auto quadComponentPtr = dynamic_cast<comp::quadrilateral*>(i);
 					double thickness = j.thickness();
 					if (j.isVisible())

@@ -16,6 +16,7 @@
 #include <bso/grammar/grammar.hpp>
 #include <bso/visualization/visualization.hpp>
 #include <bso/grammar/sd_grammars/default_sd_grammar.cpp>
+// #include <bso/grammar/sd_grammars/empty_sd_grammar.cpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -167,9 +168,9 @@ bool checkIfSplitPossible();
 void splitSpaceScreen();
 std::string clean_str(const std::string& input);
 
-void visualise(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "ms_building", const double& lineWidth = 1.0)
+void visualise(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "ms_building", const double& lineWidth = 1.0, bool rectangleID = false)
 {
-    vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms, type, title,lineWidth)));
+    vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms, type, title,lineWidth, rectangleID)));
 }
 
 void visualise(const bso::spatial_design::cf_building& cf, std::string type, std::string title = "sc_building")
@@ -1004,6 +1005,16 @@ std::vector<bso::structural_design::component::quadrilateral*> findQuadrilateral
     return includedQuads;
 }
 
+void prepareSDModel() {
+    std::vector<bso::structural_design::component::geometry*> allgeoms = SD_model.getGeometries();
+    for(auto g : allgeoms) {
+        //if(g->isQuadrilateral()) {
+        g->removeStructure();
+        //}
+    }
+
+}
+
 void handleCellClick(int clickedRow, int clickedColumn) {
     int space = clickedRow / 4;
 
@@ -1064,10 +1075,10 @@ void onMouseClick(int button, int state, int x, int y) {
 
         if(currentScreen == 3) {
             int x = 1550;
-            int y = 150;
+            int y = 500;
             int width = 300;
             int cellHeight = 20;
-            int numRows = 40;
+            int numRows = tableClicked.size() + 1;
             int columnWidth = width / 4;
 
             int clickedRow = (y + numRows * cellHeight - mouseY) / cellHeight - 1;
@@ -1366,6 +1377,8 @@ std::vector<bso::structural_design::component::quadrilateral*> newFindQuadsInHex
 void structuralModelFloor1Screen() {
     std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F", "H", "J", "K", "L", "M"};
 
+    // prepareSDModel();
+
     std::vector<std::string> rectangles;
 
     std::set<bso::utilities::geometry::vertex> createdLabels;
@@ -1415,7 +1428,7 @@ void structuralModelFloor1Screen() {
         tableInitialized = true;
     }
 
-    drawFourColumnTable(1550, 150, 300, 20, rectangles, tableClicked);
+    drawFourColumnTable(1550, 500, 300, 20, rectangles, tableClicked);
 
     drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
 
@@ -1586,6 +1599,7 @@ int main(int argc, char** argv) {
     glutPassiveMotionFunc(passive_motion);
 
     glShadeModel(GL_SMOOTH);
+
 
     // Main loop
     glutMainLoop();

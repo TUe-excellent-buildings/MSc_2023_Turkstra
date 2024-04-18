@@ -15,6 +15,8 @@ namespace bso { namespace spatial_design { namespace conformal {
 		std::string& type() {return mType;}
 		const std::string& type() const {return mType;}
 
+		void setType(std::string& t) { mType = t; }
+
 		cf_building_model* getBuildingModel() const {return mBuildingModel;}
 		
 		virtual void checkVertex(cf_vertex* pPtr) = 0;

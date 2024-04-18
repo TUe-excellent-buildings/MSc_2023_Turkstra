@@ -58,6 +58,8 @@ namespace bso { namespace structural_design { namespace component {
 		const bool& isGhostComponent() const {return mIsGhostComponent;}
 		bool& isVisible() {return mIsVisible;}
 		const bool& isVisible() const {return mIsVisible;}
+
+		void setType(std::string t) { mType = t; }
 	};
 	
 } // namespace component

@@ -20,8 +20,7 @@ bso::structural_design::sd_model grammar::sd_grammar<DEFAULT_SD_GRAMMAR>(const s
 		if (i.second->isSpaceSeparating())
 		{
 			// get the space or surface types, depending on the settings
-			std::pair<std::string, std::string> usedTypes = i.second->getSpaceTypes();
-			if (useSurfaceTypeInsteadOfSpaceType) usedTypes = i.second->getSurfaceTypes();
+			std::pair<std::string, std::string> usedTypes = i.second->getSurfaceTypes();
 			
 			// determine the structural type and properties of the rectangle
 			bool structureFound = false;
@@ -31,6 +30,7 @@ bso::structural_design::sd_model grammar::sd_grammar<DEFAULT_SD_GRAMMAR>(const s
 				if (structureSearch != mSDFloorProperties.end())
 				{
 					structureFound = true;
+					structureSearch->second.setType("flat_shell");
 				}
 			}
 			else if (i.second->isWall())
@@ -39,6 +39,7 @@ bso::structural_design::sd_model grammar::sd_grammar<DEFAULT_SD_GRAMMAR>(const s
 				if (structureSearch != mSDWallProperties.end())
 				{
 					structureFound = true;
+					structureSearch->second.setType("empty");
 				}
 			}
 			if (!structureFound)

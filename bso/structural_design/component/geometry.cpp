@@ -15,6 +15,10 @@ namespace bso { namespace structural_design { namespace component {
 	
 	void geometry::addStructure(const structure& s)
 	{
+		mHasTruss = false;
+		mHasBeam = false;
+		mHasFlatShell = false;
+		mHasQuadHexahedron = false;
 		if 			(s.type() == "truss") mHasTruss = true;
 		else if (s.type() == "beam") mHasBeam = true;
 		else if (s.type() == "flat_shell") mHasFlatShell = true;
@@ -22,6 +26,14 @@ namespace bso { namespace structural_design { namespace component {
 		
 		mStructures.push_back(s);
 	} // addStructure()
+
+	void geometry::removeStructure()
+	{
+		mHasTruss = false;
+		mHasBeam = false;
+		mHasFlatShell = false;
+		mHasQuadHexahedron = false;
+	}
 
 	void geometry::addLoad(const load& l)
 	{
