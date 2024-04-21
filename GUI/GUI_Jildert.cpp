@@ -15,7 +15,7 @@
 #include <bso/building_physics/bp_model.hpp>
 #include <bso/grammar/grammar.hpp>
 #include <bso/visualization/visualization.hpp>
-#include <bso/grammar/sd_grammars/default_sd_grammar.cpp>
+#include <bso/grammar/sd_grammars/design_human.cpp>
 // #include <bso/grammar/sd_grammars/empty_sd_grammar.cpp>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -46,7 +46,7 @@ int etaConverge = 1;
 std::string checkingOrder = "321";
 
 bso::grammar::grammar grm(CF);
-bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DEFAULT_SD_GRAMMAR>(std::string("settings/sd_settings.txt"), true);
+bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_HUMAN>(std::string("settings/sd_settings.txt"), flatShellStructure, substituteStructure);
 
 struct Button {
     float x, y, width, height;
@@ -1557,6 +1557,8 @@ int main(int argc, char** argv) {
     glutPassiveMotionFunc(passive_motion);
 
     glShadeModel(GL_SMOOTH);
+
+    std::cout << "SubRectangles: " << SD_model.getSubRectangles().size() << std::endl;
 
 
     // Main loop

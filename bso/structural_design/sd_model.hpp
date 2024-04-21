@@ -19,6 +19,7 @@ namespace bso { namespace structural_design {
 		std::vector<component::point*> mPoints;
 		std::vector<component::geometry*> mGeometries;
 		std::vector<component::point*> mMeshedPoints;
+		std::vector<spatial_design::conformal::cf_rectangle*> mSubRectangles;
 		
 		fea* mFEA;
 		std::streambuf* mTopOptStreamBuffer;
@@ -57,6 +58,10 @@ namespace bso { namespace structural_design {
 		fea* const getFEA() const {return mFEA;}
 		const std::vector<component::point*>& getPoints() const {return mPoints;}
 		const std::vector<component::geometry*> getGeometries() const {return mGeometries;}
+		
+		std::vector<spatial_design::conformal::cf_rectangle*> getSubRectangles() const {return mSubRectangles;}
+		void addSubRectangle(spatial_design::conformal::cf_rectangle* r) { mSubRectangles.push_back(r); }
+
 	};
 	
 	struct sd_results
