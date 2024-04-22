@@ -3,13 +3,26 @@
 
 #include <ostream>
 #include <sstream>
-#include <vector>
-#include <map>
 #include <bso/structural_design/fea.hpp>
 #include <bso/structural_design/component/point.hpp>
 #include <bso/structural_design/component/line_segment.hpp>
 #include <bso/structural_design/component/quadrilateral.hpp>
 #include <bso/structural_design/component/quad_hexahedron.hpp>
+
+namespace bso {
+    namespace spatial_design {
+        namespace conformal {
+            class cf_rectangle;
+        }
+    }
+    namespace grammar {
+        namespace rule_set {
+            namespace sd_rule_set {
+                class sd_rectangle_rule;
+            }
+        }
+    }
+}
 
 namespace bso { namespace structural_design {
 
@@ -21,9 +34,8 @@ namespace bso { namespace structural_design {
 		std::vector<component::point*> mPoints;
 		std::vector<component::geometry*> mGeometries;
 		std::vector<component::point*> mMeshedPoints;
-
-		// Use a vector to store pointers to subRectangles
-        std::vector<bso::spatial_design::conformal::cf_rectangle*> mSubRectangles;
+		std::vector<spatial_design::conformal::cf_rectangle*> mSubRectangles;
+		std::vector<grammar::rule_set::sd_rule_set::sd_rectangle_rule*> mSubRectangleRules;
 
 		fea* mFEA;
 		std::streambuf* mTopOptStreamBuffer;
@@ -63,14 +75,12 @@ namespace bso { namespace structural_design {
 		const std::vector<component::point*>& getPoints() const {return mPoints;}
 		const std::vector<component::geometry*> getGeometries() const {return mGeometries;}
 
-        // Methods to manage subRectangles
-        void addSubRectangle(bso::spatial_design::conformal::cf_rectangle* rectangle) {
-            mSubRectangles.push_back(rectangle);
-        }
+		std::vector<spatial_design::conformal::cf_rectangle*> getSubRectangles() const {return mSubRectangles;}
+		void addSubRectangle(spatial_design::conformal::cf_rectangle* r) { mSubRectangles.push_back(r); }
 
-        const std::vector<bso::spatial_design::conformal::cf_rectangle*>& getSubRectangles() const {
-            return mSubRectangles;
-        }
+		// Method to get sub rectangle rules
+		std::vector<grammar::rule_set::sd_rule_set::sd_rectangle_rule*> getSubRectangleRules() const {return mSubRectangleRules;}
+		void addSubRectangleRule(grammar::rule_set::sd_rule_set::sd_rectangle_rule* rule) { mSubRectangleRules.push_back(rule); }
 	};
 
 	struct sd_results

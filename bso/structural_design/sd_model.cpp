@@ -61,6 +61,12 @@ namespace bso { namespace structural_design {
 			for (const auto& j : i->getLoads()) newSDGeom->addLoad(j);
 			for (const auto& j : i->getConstraints()) newSDGeom->addConstraint(j);
 		}
+		for (const auto& j : rhs.mSubRectangles) {
+			mSubRectangles.push_back(j); // Copy each rectangle independently
+		}
+		for (const auto& j : rhs.mSubRectangleRules) {
+			mSubRectangleRules.push_back(j); // Copy each rectangle independently
+		}
 		mMeshSize = rhs.mMeshSize;
 		mTopOptStreamBuffer = rhs.mTopOptStreamBuffer;
 	}
