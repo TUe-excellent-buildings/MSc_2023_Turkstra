@@ -8,9 +8,6 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
-#include <variant>
-#include <tuple>
-#include <mutex>
 
 #include <bso/spatial_design/ms_building.hpp>
 #include <bso/spatial_design/cf_building.hpp>
@@ -19,22 +16,13 @@
 #include <bso/grammar/grammar.hpp>
 #include <bso/visualization/visualization.hpp>
 #include <bso/grammar/sd_grammars/design_human.cpp>
+// #include <bso/grammar/sd_grammars/empty_sd_grammar.cpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-using namespace std;
-
-std::vector<bso::spatial_design::ms_building> msModels;
-std::vector<bso::structural_design::sd_model> sdModels;
-
-bso::spatial_design::ms_building MS("Villa");  // Create an MS model
+bso::spatial_design::ms_building MS("Villa");
 bso::spatial_design::cf_building CF(MS);
-
-void initializeModels() {
-    bso::spatial_design::ms_building MS("Villa");  // Create an MS model
-    msModels.push_back(MS);  // Add the MS model to the vector
-}
 
 bool visualizationActive = true;
 bso::visualization::viewportmanager vpmanager_local;
@@ -65,6 +53,24 @@ struct Button {
     ButtonCallback callback;
     const char* text;
     int variable;
+};
+
+struct LogEntry {
+    std::string time;
+    int iteration;
+    std::string description;
+    std::string value;
+
+    // Constructor
+    LogEntry(int iter, const std::string& desc, const std::string& val)
+        : iteration(iter), description(desc), value(val) {
+            // Format the current time upon entry creation
+            auto now = std::chrono::system_clock::now();
+            auto now_c = std::chrono::system_clock::to_time_t(now);
+            std::ostringstream oss;
+            oss << std::put_time(std::localtime(&now_c), "%H:%M:%S");
+            time = oss.str();
+        }
 };
 
 struct TextField {
@@ -103,86 +109,12 @@ struct TextField {
     }
 };
 
-
-
-// Define the variant to handle different types of values
-using LogValue = std::variant<std::string, double>;
-
-struct LogEntry {
-    std::string time;
-    int iteration;
-    std::string description;
-    LogValue value;  // Now using LogValue
-
-    // Constructor for different types of LogValue
-    LogEntry(int iter, const std::string& desc, const LogValue& val)
-        : iteration(iter), description(desc), value(val) {
-        // Format the current time upon entry creation
-        auto now = std::chrono::system_clock::now();
-        auto now_c = std::chrono::system_clock::to_time_t(now);
-        std::ostringstream oss;
-        oss << std::put_time(std::localtime(&now_c), "%H:%M:%S");
-        time = oss.str();
-    }
-};
-
-std::vector<LogEntry> logEntries;
-std::mutex logMutex;  // For thread-safe logging
-
-void logAction(int iteration, const std::string& description, const LogValue& value) {
-    std::lock_guard<std::mutex> lock(logMutex); // Ensure thread safety
-    logEntries.emplace_back(iteration, description, value);
-}
-
-// Helper to process variant values
-struct VariantVisitor {
-    std::ostream& os;
-
-    void operator()(const std::string& val) const {
-        os << "\"" << val << "\"";  // Output strings with quotes
-    }
-
-    void operator()(double val) const {
-        os << val;  // Output doubles directly
-    }
-};
-
-void writeToProcessFile(const std::string& fileName) {
-    std::lock_guard<std::mutex> lock(logMutex); // Ensure thread safety
-    std::ofstream processFile(fileName, std::ios::app);
-    if (!processFile.is_open()) {
-        std::cerr << "Failed to open log file" << std::endl;
-        return; // Optionally handle the error more robustly here
-    }
-
-    static bool headerPrinted = false;
-    if (!headerPrinted) {
-        processFile << "Time;Iteration;Description;Value\n";
-        headerPrinted = true;
-    }
-
-    for (const auto& entry : logEntries) {
-        processFile << entry.time << ";" << entry.iteration << ";"
-                    << entry.description << ";";
-        std::visit(VariantVisitor{processFile}, entry.value);
-        processFile << "\n";
-    }
-    processFile.close();
-    logEntries.clear();
-}
-
-
 std::vector<Button> buttons;
+std::vector<LogEntry> logEntries;
 
 TextField removeSpace;
 TextField splitSpace;
 TextField explanation;
-TextField survey1;
-TextField survey2;
-TextField survey3;
-TextField survey4;
-TextField survey5;
-TextField survey6;
 
 // Global variables for current screen and screen dimensions
 int currentScreen = 0;
@@ -197,7 +129,7 @@ const float MARGIN_PERCENT = 1.0f; // Margin as a percentage of the window width
 
 // Counter for iterations
 int iteration_counter = 1;
-const int max_iterations = 2;
+const int max_iterations = 3; // actual iterations is 1 lower
 
 // Vector of rectangles
 std::vector<bso::utilities::geometry::polygon*> rectanglesGeometry;
@@ -216,15 +148,8 @@ void structuralModelFloor1Screen();
 void structuralModelFloor23Screen();
 void removeSpaceScreen();
 void splitSpaceScreen();
-void iteration1CompleteScreen();
-void iteration2CompleteScreen();
-void surveyScreen1();
-void surveyScreen2();
-void surveyScreen3();
-void surveyScreen4();
-void surveyScreen5();
-void surveyScreen6();
-void outroScreen();
+void iterationCompleteScreen();
+void surveyScreen();
 void displayConfirmationRequest(int spaceID, const std::string& message, void (*action)(int));
 void drawText(const char* text, float startX, float centerY, float textWidth, float r, float g, float b, bool bold = false);
 void drawButton(const char *text, float x, float y, float width, float height, ButtonCallback callback, int variable);
@@ -243,9 +168,9 @@ bool checkIfSplitPossible();
 void splitSpaceScreen();
 std::string clean_str(const std::string& input);
 
-void visualise(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "ms_building", const double& lineWidth = 1.0)
+void visualise(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "ms_building", const double& lineWidth = 1.0, bool rectangleID = true)
 {
-    vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms, type, title,lineWidth)));
+    vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms, type, title,lineWidth, rectangleID)));
 }
 
 void visualise(const bso::spatial_design::cf_building& cf, std::string type, std::string title = "sc_building")
@@ -253,27 +178,25 @@ void visualise(const bso::spatial_design::cf_building& cf, std::string type, std
 	vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::Conformal_Model(cf, type, title)));
 }
 
-void visualise_2(const bso::structural_design::sd_model& sd, const std::string& type ="component",
+void visualise(const bso::structural_design::sd_model& sd, const std::string& type ="component",
+							 const std::string& title ="sd_model", const bool& ghostly = false,
+							 const std::vector<std::pair<bso::utilities::geometry::vertex,
+							 bso::utilities::geometry::vector>>& cuttingPlanes = {})
+{
+	vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::SD_Model(sd, type, title, ghostly, cuttingPlanes)));
+}
+
+void visualise_2(const bso::spatial_design::cf_building& cf, std::string type = "cuboid", std::string title = "sc_building")
+{
+	vpmanager_local.addviewport(new bso::visualization::viewport(new bso::visualization::Conformal_Model(cf, type, title)));
+}
+
+void visualise_add_SD(const bso::structural_design::sd_model& sd, const std::string& type ="component",
 							 const std::string& title ="sd_model", const bool& ghostly = false,
 							 const std::vector<std::pair<bso::utilities::geometry::vertex,
 							 bso::utilities::geometry::vector>>& cuttingPlanes = {})
 {
 	vpmanager_local.addviewport(new bso::visualization::viewport(new bso::visualization::SD_Model(sd, type, title, ghostly, cuttingPlanes)));
-}
-
-void visualise_ms_0(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "", const double& lineWidth = 1.0)
-{
-    vpmanager_local.changeviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms, type, title,lineWidth)));
-}
-
-void visualise_ms_1(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "", const double& lineWidth = 1.0)
-{
-    vpmanager_local.addviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms, type, title,lineWidth)));
-}
-
-void visualise_ms_2(const bso::spatial_design::ms_building& ms, const std::string& type = "spaces", const std::string& title = "", const double& lineWidth = 1.0)
-{
-    vpmanager_local.addviewport(new bso::visualization::viewport(new bso::visualization::MS_Model(ms, type, title,lineWidth)));
 }
 
 void checkGLError(const char* action) {
@@ -283,36 +206,8 @@ void checkGLError(const char* action) {
     }
 }
 
-//Declare a global variable to store the selected button label
-std::string selectedButtonLabel = "";
-
-// Function to get the selected button label
-std::string getSelectedButtonLabel() {
-    return selectedButtonLabel;
-}
-
-
 void buttonClicked(int variable) {
     std::cout << "Button clicked: " << variable << std::endl;
-
-    // Set the selected button label based on the variable
-    switch (variable) {
-    case 1:
-        selectedButtonLabel = "1";
-        break;
-    case 2:
-        selectedButtonLabel = "2";
-        break;
-    case 3:
-        selectedButtonLabel = "3";
-        break;
-    case 4:
-        selectedButtonLabel = "4";
-        break;
-    case 5:
-        selectedButtonLabel = "5";
-        break;
-    }
 }
 
 std::string clean_str(const std::string& input) {
@@ -405,61 +300,47 @@ std::string getCurrentTime() {
     return oss.str();
 }
 
-std::map<int, std::chrono::steady_clock::time_point> screenStartTimes;
-int lastScreen = -1;
+void logAction(int iteration, const std::string& description, const std::string& value) {
+    logEntries.emplace_back(iteration, description, value);
+}
 
-void changeScreen(int screen) {
-    if (lastScreen != -1) {
-        auto endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::seconds>(endTime - screenStartTimes[lastScreen]).count();
-        std::cout << "Time spent on screen " << lastScreen << ": " << duration << " seconds." << std::endl;
-
-        // Log the time spent on the last screen
-        logAction(iteration_counter, "Time Spent", duration);  // Assuming duration is acceptable as LogValue
+void writeToProcessFile(const std::string& fileName) {
+    std::ofstream processFile(fileName, std::ios::app);
+    static bool headerPrinted = false;
+    if (!headerPrinted) {
+        processFile << "Time;Iteration;Description;Value\n";
+        headerPrinted = true;
     }
 
-    std::cout << "GUI nr rec: " << SD_model.getSubRectangles().size() << std::endl;
-    //std::cout << "GUI nr rec: " << mSDModel.getSubRectangles().size() << std::endl;
+    for (const auto& entry : logEntries) {
+        processFile << entry.time << ";" << entry.iteration << ";"
+                    << entry.description << ";" << entry.value << "\n";
+    }
+    processFile.close();
+    logEntries.clear();
+}
 
-	SD_model.analyze();
-	std::cout << "GUI Strain:" << SD_model.getTotalResults().mTotalStrainEnergy << std::endl;
-    std::cout << "GUI Volume:" << SD_model.getTotalResults().mTotalStructuralVolume << std::endl;
 
-    // Record the start time for the new screen
-    screenStartTimes[screen] = std::chrono::steady_clock::now();
-    lastScreen = screen;  // Update lastScreen to the current one
-
-    // Log entering the new screen
-    logAction(iteration_counter, "Entered Screen", screen);
-
+void changeScreen(int screen) {
     inputFieldDisabled = false;
     currentScreen = screen;
     std::cout << "Screen changed to: Screen " << screen << std::endl;
-
     if(screen  <= 2) {
         vpmanager_local.clearviewports();
+        // visualise(MS);
         visualise(MS);
+        //visualise(CF, "rectangles");
+        // visualise(SD_Building, 1);
         visualizationActive = true;
-    } else if(screen >= 3 && screen <= 6) {
+    } else if(screen == 3) {
         vpmanager_local.clearviewports();
-        visualise(MS);
-        visualise_2(SD_model);
-        visualizationActive = true;
-    } else if(screen == 7) {
-        vpmanager_local.clearviewports();
-        visualise_ms_0(msModels[0]);
-        visualise_ms_1(msModels[1]);
-        visualise_ms_2(msModels[2]);
-        visualizationActive = true;
-    } else if(screen == 8) {
-        vpmanager_local.clearviewports();
-        visualise_ms_0(msModels[0]);
-        visualise_ms_1(msModels[1]);
-        visualise_ms_2(msModels[2]);
+        visualise(CF, "rectangles");
+        visualise_add_SD(SD_model);
         visualizationActive = true;
     } else {
         vpmanager_local.clearviewports();
-        visualizationActive = false;
+        visualise(MS);
+        visualizationActive = true;
     }
     glutPostRedisplay();
     buttons.clear();
@@ -536,7 +417,7 @@ void removeSpaceConfirmed(int spaceID) {
     std::cout << "Adding to removed: " << spaceID << std::endl;
     glutPostRedisplay();
 
-    logAction(iteration_counter, "Space Removed", spaceID);
+    logAction(iteration_counter, "Space Removed", std::to_string(spaceID));
 
     // Reset state as necessary
     awaitingConfirmation = false;
@@ -548,8 +429,6 @@ void removeSpaceConfirmed(int spaceID) {
     // Refresh the visualization with the updated MS
     visualise(MS);
     visualizationActive = true;
-
-    msModels.push_back(MS);
 }
 
 bool validateSpaceSplitID(const std::string& input, int& outNumber, int initialSpaceCount, std::string& errorMessage) {
@@ -588,19 +467,7 @@ bool validateSpaceSplitID(const std::string& input, int& outNumber, int initialS
     return true;
 }
 
-void scaleModel() {
-    // SCALE TO RECOVER INITIAL FLOOR AREA
-    std::cout << "Start scaling" << std::endl;
-    double scaleFactor = sqrt(floorArea / MS.getFloorArea());
-    MS.scale({{0,scaleFactor},{1,scaleFactor}});
-    MS.snapOn({{0,1},{1,1}});
-    // Update the visualization to reflect the changes
-    visualise(MS);
 
-    logAction(iteration_counter, "Scale Factor", scaleFactor);
-    std::cout << scaleFactor << std::endl;
-    std::cout << "Finished scaling" << std::endl;
-}
 
 void splitSpaceConfirmed(int spaceID) {
     auto* spaceToSplit = MS.getSpacePtr(MS.getSpacePtrs()[MS.getSpaceLocation(spaceID)]);
@@ -632,7 +499,7 @@ void splitSpaceConfirmed(int spaceID) {
         spaceInputErrorMessage = "Failed to find space for splitting.";
     }
 
-    logAction(iteration_counter, "Space Split", spaceID);
+    logAction(iteration_counter, "Space Split", std::to_string(spaceID));
 
     // Reset the UI and state flags regardless of outcome
     awaitingConfirmation = false;
@@ -640,13 +507,23 @@ void splitSpaceConfirmed(int spaceID) {
     spaceInputErrorMessage = "";
     inputFieldDisabled = true;
 
-    scaleModel();
-
-    msModels.push_back(MS);
-
     glutPostRedisplay();
 }
 
+
+void scaleModel() {
+    // SCALE TO RECOVER INITIAL FLOOR AREA
+    double scaleFactor = sqrt(floorArea / MS.getFloorArea());
+    MS.scale({{0,scaleFactor},{1,scaleFactor}});
+    MS.snapOn({{0,1},{1,1}});
+    // Update the visualization to reflect the changes
+    visualise(MS);
+
+    logAction(iteration_counter, "Scale Factor", std::to_string(scaleFactor));
+
+    // Increment iteration counter
+    iteration_counter++;
+}
 
 void motion(int x, int y)
 {
@@ -713,15 +590,8 @@ void display() {
         case 4: structuralModelFloor23Screen(); break;
         case 5: removeSpaceScreen(); break;
         case 6: splitSpaceScreen(); break;
-        case 7: iteration1CompleteScreen(); break;
-        case 8: iteration2CompleteScreen(); break;
-        case 9: surveyScreen1(); break;
-        case 10: surveyScreen2(); break;
-        case 11: surveyScreen3(); break;
-        case 12: surveyScreen4(); break;
-        case 13: surveyScreen5(); break;
-        case 14: surveyScreen6(); break;
-        case 15: outroScreen(); break;
+        case 7: iterationCompleteScreen(); break;
+        case 8: surveyScreen(); break;
         default: break;
     }
 
@@ -782,6 +652,12 @@ void setup3D() {
 
 
 void keyboard(unsigned char key, int x, int y) {
+    // Change screens based on key press
+    if (key == '!') currentScreen = 0;
+    if (key == '@') currentScreen = 1;
+    if (key == '#') currentScreen = 2;
+    if (key == '$') currentScreen = 3;
+
     GLenum err;
     while ((err = glGetError()) != GL_NO_ERROR) {
         std::cerr << "OpenGL error: " << gluErrorString(err) << std::endl;
@@ -816,7 +692,7 @@ void keyboard(unsigned char key, int x, int y) {
                 // If validation succeeds, set up for confirmation
                 awaitingConfirmation = true;
                 // Call displayConfirmationRequest
-                displayConfirmationRequest(spaceID, "Press Y to submit, N to cancel.", removeSpaceConfirmed);
+                displayConfirmationRequest(spaceID, "Press Y to confirm, N to cancel.", removeSpaceConfirmed);
             } else {
                 // Handle invalid input based on the specific error message returned by validation
                 removeSpace.text = "";
@@ -862,7 +738,7 @@ void keyboard(unsigned char key, int x, int y) {
                 // If validation succeeds, set up for confirmation
                 awaitingConfirmation = true;
                 // Call displayConfirmationRequest
-                displayConfirmationRequest(spaceID, "Press Y to submit, N to cancel.", splitSpaceConfirmed);
+                displayConfirmationRequest(spaceID, "Press Y to confirm, N to cancel.", splitSpaceConfirmed);
             } else {
                 // Handle invalid input based on the specific error message returned by validation
                 splitSpace.text = "";
@@ -876,49 +752,6 @@ void keyboard(unsigned char key, int x, int y) {
             splitSpace.text += key; // Append the character to the input string
         } else if (key == 8 && removeSpace.text != "") { // Backspace key
             splitSpace.text.pop_back(); // Remove the last character from input string
-        }
-    }
-
-    if (currentScreen == 9){
-        if (key >= 32 && key <= 126) {
-            survey1.text += key;
-        } else if (key == 8 && survey1.text != "") {
-            survey1.text.pop_back();
-        }
-    }
-    if (currentScreen == 10){
-        if (key >= 32 && key <= 126) {
-            survey2.text += key;
-        } else if (key == 8 && survey2.text != "") {
-            survey2.text.pop_back();
-        }
-    }
-    if (currentScreen == 11){
-        if (key >= 32 && key <= 126) {
-            survey3.text += key;
-        } else if (key == 8 && survey3.text != "") {
-            survey3.text.pop_back();
-        }
-    }
-    if (currentScreen == 12){
-        if (key >= 32 && key <= 126) {
-            survey4.text += key;
-        } else if (key == 8 && survey4.text != "") {
-            survey4.text.pop_back();
-        }
-    }
-    if (currentScreen == 13){
-        if (key >= 32 && key <= 126) {
-            survey5.text += key;
-        } else if (key == 8 && survey5.text != "") {
-            survey5.text.pop_back();
-        }
-    }
-    if (currentScreen == 14){
-        if (key >= 32 && key <= 126) {
-            survey6.text += key;
-        } else if (key == 8 && survey6.text != "") {
-            survey6.text.pop_back();
         }
     }
     if (key == 'f') {
@@ -1010,15 +843,8 @@ void drawButton(const char *text, float x, float y, float width, float height, B
     glVertex2f(x - borderWidth, y + height + borderWidth);
     glEnd();
 
-
-    if (getSelectedButtonLabel() == text) {
-        glColor3f(0.8f, 0.8f, 0.8f); // Light grey color for button background
-    }
-    else {
-        glColor3f(1.0, 1.0, 1.0); // White color for button background
-    }
-
     // Draw button background
+    glColor3f(1.0, 1.0, 1.0); // White
     glBegin(GL_QUADS);
     glVertex2f(x, y);
     glVertex2f(x + width, y);
@@ -1187,41 +1013,56 @@ std::vector<bso::structural_design::component::quadrilateral*> findQuadrilateral
     return includedQuads;
 }
 
-void handleCellClick(int clickedRow, int clickedColumn) {
-    int space = clickedRow / 4;
-
+void prepareSDModel() {
     std::vector<bso::structural_design::component::geometry*> allgeoms = SD_model.getGeometries();
-    std::vector<bso::structural_design::component::quadrilateral*> rectgeoms = allQuads(allgeoms);
-    std::vector<bso::structural_design::component::line_segment*> lines = allLines(allgeoms);
-
-    // rectgeoms[clickedRow]->setMaterial(beamMaterial);
-
-    std::cout << "Cell clicked" << clickedRow << clickedColumn << std::endl;
-
-    if(clickedColumn == 1) {
-        std::vector<bso::structural_design::component::line_segment*> matchingLines = findMatchingLineSegments(rectgeoms[space], lines);
-        for(auto line : matchingLines) {
-            // line->setMaterial(trussMaterial);
-            line->addStructure(trussStructure);
-        }
-        std::cout << "Truss structure added to rectangle " << clickedRow << std::endl;
-    } else if(clickedColumn == 2) {
-        std::vector<bso::structural_design::component::line_segment*> matchingLines = findMatchingLineSegments(rectgeoms[space], lines);
-        for(auto line : matchingLines) {
-            // line->setMaterial(beamMaterial);
-            line->addStructure(beamStructure);
-        }
-        std::cout << "Beam structure added to rectangle " << clickedRow << std::endl;
-    } else if(clickedColumn == 3) {
-        rectgeoms[clickedRow]->addStructure(flatShellStructure);
-        // printPoints(rectgeoms[clickedRow]);
-        std::cout << "Flat shell structure added to rectangle " << clickedRow << std::endl;
+    for(auto g : allgeoms) {
+        //if(g->isQuadrilateral()) {
+        g->removeStructure();
+        //}
     }
 
-    if(clickedColumn != 0) tableClicked[clickedRow] = clickedColumn;
-
-    changeScreen(3);
 }
+
+void handleCellClick(int clickedRow, int clickedColumn) {
+    // Retrieve the vector of rule sets
+    auto subRectangleRules = SD_model.getSubRectangleRules();
+    std::vector<bso::grammar::rule_set::sd_rule_set::sd_rectangle_rule*> rules;
+
+    // Map the rules to their handling objects
+    for (auto& rule : subRectangleRules) {
+        rules.push_back(rule);  // Ensure that the mapping is correctly handled
+    }
+
+    if (clickedRow >= rules.size() || rules[clickedRow] == nullptr) {
+    std::cerr << "Error: Invalid rule or clicked row " << clickedRow << " is out of bounds." << std::endl;
+    return;
+    }
+
+    // Selected rule based on UI interaction
+    bso::grammar::rule_set::sd_rule_set::sd_rectangle_rule* selectedRule = rules[clickedRow];
+
+    std::cout << "Cell clicked" << clickedRow << ", Column: " << clickedColumn << std::endl;
+
+    if (clickedColumn == 1) {
+        selectedRule->assignStructure(trussStructure);
+        std::cout << "Truss structure added to rectangle " << clickedRow << std::endl;
+    }
+    else if (clickedColumn == 2) {
+        selectedRule->assignStructure(beamStructure);
+        std::cout << "Beam structure added to rectangle " << clickedRow << std::endl;
+    }
+    else if (clickedColumn == 3) {
+        selectedRule->assignStructure(flatShellStructure);
+        std::cout << "Flat shell structure added to rectangle " << clickedRow << std::endl;
+    }
+    if(clickedColumn != 0) {
+        tableClicked[clickedRow] = clickedColumn;
+    }
+    
+    changeScreen(3);  // Assuming this function changes the UI screen appropriately
+}
+
+
 
 void onMouseClick(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
@@ -1232,17 +1073,12 @@ void onMouseClick(int button, int state, int x, int y) {
         checkTextFieldClick(removeSpace, mouseX, mouseY);
         checkTextFieldClick(splitSpace, mouseX, mouseY);
         checkTextFieldClick(explanation, mouseX, mouseY);
-        checkTextFieldClick(survey1, mouseX, mouseY);
-        checkTextFieldClick(survey2, mouseX, mouseY);
-        checkTextFieldClick(survey3, mouseX, mouseY);
-        checkTextFieldClick(survey4, mouseX, mouseY);
-        checkTextFieldClick(survey5, mouseX, mouseY);
-        checkTextFieldClick(survey6, mouseX, mouseY);
 
         // Check for button clicks
         for (const auto& btn : buttons) {
             if (mouseX >= btn.x && mouseX <= btn.x + btn.width &&
                 mouseY >= btn.y && mouseY <= btn.y + btn.height) {
+                // Button was clicked
                 if (btn.callback) {
                     btn.callback(btn.variable);
                 }
@@ -1252,10 +1088,10 @@ void onMouseClick(int button, int state, int x, int y) {
 
         if(currentScreen == 3) {
             int x = 1550;
-            int y = 150;
+            int y = 500;
             int width = 300;
             int cellHeight = 20;
-            int numRows = 40;
+            int numRows = tableClicked.size() + 1;
             int columnWidth = width / 4;
 
             int clickedRow = (y + numRows * cellHeight - mouseY) / cellHeight - 1;
@@ -1348,8 +1184,6 @@ void drawTextField(int x, int y, int width, int height, TextField& textfield) {
         glEnd();
     }
 }
-
-
 
 
 void drawFourColumnTable(int x, int y, int width, int cellHeight, const std::vector<std::string>& column1, std::vector<int> clickedOption) {
@@ -1450,6 +1284,7 @@ void introScreen() {
 void buildingSpatialScreen() {
     drawText("Building spatial design", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
     drawText("This is your building spatial design. You can rotate the model to get familiar with the design. Each space is identified by an unique number. If you are ready, you can move on by clicking the continue button.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
+
     drawButton("Continue", startText, 80, textWidth, 50, changeScreen, 2);
 
     std::string iterationText = "Iteration " + std::to_string(iteration_counter);
@@ -1478,60 +1313,6 @@ void structuralModelScreen() {
     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 }
 
-// void structuralModelFloor1Screen() {
-//     std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F", "H", "J", "K", "L", "M"};
-
-//     std::vector<std::string> rectangles;
-
-//     std::set<bso::utilities::geometry::vertex> createdLabels;
-
-// 	for (const auto& i : MS)
-// 	{
-//         std::string rectangle;
-
-// 		bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
-
-
-//         for(int j = 0; j < 4; ++j)
-//         {
-//             rectangle = std::to_string(i->getID()) + surfaceLetters[j];
-//             auto tempSurface = spaceGeometry.getPolygons()[j];
-//             auto surfaceCenter = tempSurface->getCenter();
-//             if(createdLabels.find(surfaceCenter) == createdLabels.end())
-//             {
-//                 rectangles.push_back(rectangle);
-//                 createdLabels.insert(surfaceCenter);
-//             }
-//             rectangle = "";
-
-//             rectanglesGeometry.push_back(spaceGeometry.getPolygons()[j]);
-//         }
-//     }
-
-//     std::vector<std::string> rectangles2;
-//     for (const auto& i : SD_model.getGeometries())
-//     {
-//         if(i->isQuadrilateral()) {
-//             rectangles2.push_back("1");
-//         }
-//     }
-//     std::cout << rectangles2.size() << std::endl;
-
-//     if(!tableInitialized){
-//         tableClicked = std::vector<int>(rectangles.size(), 0);
-//         tableInitialized = true;
-//     }
-
-//     drawFourColumnTable(1550, 150, 300, 20, rectangles, tableClicked);
-
-//     drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
-
-//     drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 6);
-
-//     std::string iterationText = "Iteration " + std::to_string(iteration_counter);
-//     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
-// }
-
 std::vector<bso::structural_design::component::quadrilateral*> newFindQuadsInHex(bso::utilities::geometry::quad_hexahedron spaceGeometry, std::vector<bso::structural_design::component::quadrilateral*> quads) {
     std::vector<bso::structural_design::component::quadrilateral*> space_quads;
     std::vector<bso::utilities::geometry::vertex> spaceVertices = spaceGeometry.getVertices();
@@ -1552,67 +1333,50 @@ std::vector<bso::structural_design::component::quadrilateral*> newFindQuadsInHex
     return space_quads;
 }
 
-void structuralModelFloor1Screen() {
-    std::vector<std::string> surfaceLetters = {"A", "B", "C", "D", "E", "F", "H", "J", "K", "L", "M"};
+bool isVertical(bso::structural_design::component::quadrilateral* quad) {
+    std::vector<bso::utilities::geometry::vertex> vertices = quad->getVertices();
 
-    std::vector<std::string> rectangles;
+    double begCoord = vertices[0][2];
 
-    std::set<bso::utilities::geometry::vertex> createdLabels;
-
-    std::vector<bso::structural_design::component::geometry*> allgeoms = SD_model.getGeometries();
-    std::vector<bso::structural_design::component::quad_hexahedron*> spacegeoms = allHexahedrons(allgeoms);
-    std::vector<bso::structural_design::component::quadrilateral*> quads = allQuads(allgeoms);
-
-    int k = 1;
-
-    std::cout << "allgeoms size: " << allgeoms.size() << std::endl;
-    std::cout << "spacegeoms size: " << spacegeoms.size() << std::endl;
-
-	for (const auto& i : MS)
-	{
-        std::string rectangle;
-
-        bso::utilities::geometry::quad_hexahedron spaceGeometry = i->getGeometry();
-
-        //std::vector<bso::structural_design::component::quadrilateral*> space_quads = findQuadrilateralsInQuadHexahedron(quads, spaceGeometry);
-        std::vector<bso::structural_design::component::quadrilateral*> space_quads = newFindQuadsInHex(spaceGeometry, quads);
-
-        std::cout << space_quads.size() << std::endl;
-
-        for(int j = 0; j < space_quads.size(); ++j)
-        {
-            rectangle = std::to_string(k) + surfaceLetters[j];
-            auto tempSurface = space_quads[j];
-            auto surfaceCenter = tempSurface->getCenter();
-            if(createdLabels.find(surfaceCenter) == createdLabels.end())
-            {
-                rectangles.push_back(rectangle);
-                createdLabels.insert(surfaceCenter);
-            }
-            rectangle = "";
-
-            rectanglesGeometry.push_back(space_quads[j]);
-        }
-        k++;
+    for(int i=1; i < vertices.size(); i++) {
+        if(begCoord != vertices[i][2]) return true;
     }
 
-    std::cout << "Rectangles size: " << rectangles.size() << std::endl;
-    std::cout << k << std::endl;
+    return false;
+}
+
+void structuralModelFloor1Screen() {
+    // Accessing the rules instead of rectangle pointers
+    auto subRectangleRules = SD_model.getSubRectangleRules();
+    //std::cout << "RectangleRules size: " << SD_model.getSubRectangleRules().size() << std::endl;
+    //std::cout << "SubRectangles size: " << SD_model.getSubRectangles().size() << std::endl;
+    std::vector<std::string> rectangles;
+
+    // Populate the rectangles vector with numbers corresponding to each rectangle rule
+    for (size_t j = 0; j < subRectangleRules.size(); ++j) {
+        rectangles.push_back(std::to_string(j));  // Use j+1 to number from 1 to n
+    }
 
     if(!tableInitialized){
-        tableClicked = std::vector<int>(rectangles.size(), 0);
+        tableClicked = std::vector<int>(subRectangleRules.size(), 0);
         tableInitialized = true;
     }
 
-    drawFourColumnTable(1550, 150, 300, 20, rectangles, tableClicked);
+    // Draw a four-column table displaying the rectangle numbers
+    drawFourColumnTable(1550, 500, 300, 20, rectangles, tableClicked);
 
+    // Display a text prompt below the table
     drawText("Once you are finished, please continue below.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
 
-    drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 5);
+    // Provide a button to proceed to the next view in the UI
+    drawButton("View structural design", startText, 80, textWidth, 50, changeScreen, 6);
 
+    // Display the current iteration number at the bottom
     std::string iterationText = "Iteration " + std::to_string(iteration_counter);
     drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
 }
+
+
 
 void structuralModelFloor23Screen() {
     drawText("Structural design floor 2 & 3", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
@@ -1647,7 +1411,7 @@ void removeSpaceScreen() {
 
     // Check and display error message below the text field if there's an error
     if (spaceInputError) {
-        bool isConfirmation = spaceInputErrorMessage == "Press Y to submit, N to cancel.";
+        bool isConfirmation = spaceInputErrorMessage == "Press Y to confirm, N to cancel.";
 
         float r = isConfirmation ? 0.0f : 1.0f; // Blue for confirmation, red for error
         float g = 0.0f;
@@ -1668,13 +1432,8 @@ void splitSpaceScreen() {
     if (splittingConfirmed) {
         // Draw the message indicating the space has been deleted
         drawText("Space split successfully. Click 'Continue' to proceed.", startText, 400, textWidth, 0.0f, 0.0f, 0.0f);
-        if (iteration_counter < max_iterations) {
-            drawButton("Continue", startText, 80, textWidth, 50, changeScreen, 7);
+        drawButton("Continue", startText, 80, textWidth, 50, changeScreen, 7);
         }
-        else {
-            drawButton("Continue", startText, 80, textWidth, 50, changeScreen, 8);
-        }
-    }
     else if (!inputFieldDisabled) {
         // Render the input field only if it's not disabled
         drawText("Please enter the space ID below to split", startText, 600, textWidth, 0.0f, 0.0f, 0.0f);
@@ -1683,7 +1442,7 @@ void splitSpaceScreen() {
 
     // Check and display error message below the text field if there's an error
     if (spaceInputError) {
-        bool isConfirmation = spaceInputErrorMessage == "Press Y to submit, N to cancel.";
+        bool isConfirmation = spaceInputErrorMessage == "Press Y to confirm, N to cancel.";
 
         float r = isConfirmation ? 0.0f : 1.0f; // Blue for confirmation, red for error
         float g = 0.0f;
@@ -1698,165 +1457,69 @@ void splitSpaceScreen() {
 }
 
 
-void iteration1CompleteScreen() {
-    drawText("Iteration 1 complete", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
-    std::string iterationText = "Iteration " + std::to_string(iteration_counter);
-    drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
-    drawText("You just completed the first iteration. The building spatial model has been scaled to recover initial floor area. You can view all previous steps in the screen on the left. The first iteration is complete, which means that the final building spatial design will now be used as the starting point for the second iteration.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
+void iterationCompleteScreen() {
+    // Check if scaling has been completed
+    if (!scalingCompleted) {
+        drawText("Iteration complete", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
+        std::string iterationText = "Iteration " + std::to_string(iteration_counter);
+        drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
+        drawText("You just completed an iteration. The building spatial model needs to be scaled to recover initial floor area. Press the button below to scale the model.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
 
-    std::string nextIterationText = "Start iteration " + std::to_string(iteration_counter + 1);
-    drawButton(nextIterationText.c_str(), startText, 80, textWidth, 50, [](int){iteration_counter++; changeScreen(1); }, 0);
-
+        drawButton("Scale model", startText, 500, textWidth, 50, [](int){
+            scaleModel(); // Perform scaling
+            scalingCompleted = true; // Update state
+            glutPostRedisplay(); // Trigger a redraw of the screen
+        }, 0);
+    } else {
+        // Adjust the message and button based on whether it's the final iteration
+        if (iteration_counter < max_iterations) {
+            // Not the final iteration yet
+            std::string nextIterationText = "Start iteration " + std::to_string(iteration_counter);
+            drawText("Model scaled successfully. Ready to start the next iteration.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
+            drawButton(nextIterationText.c_str(), startText, 80, textWidth, 50, [](int){ changeScreen(1); }, 0);
+        } else {
+            // This is the final iteration
+            drawText("You have completed the final iteration. Congratulations!", 1550, 850, 250, 0.0f, 0.0f, 0.0f);
+            drawButton("Conclude", startText, 80, textWidth, 50, [](int){ changeScreen(8); }, 0);
+        }
+    }
     deletionConfirmed = false;
     splittingConfirmed = false;
     removeSpace.text = "";
     splitSpace.text = "";
+
+    writeToProcessFile("processLog.csv");
 }
 
-void iteration2CompleteScreen() {
-    drawText("Assignment complete", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
-    std::string iterationText = "Iteration " + std::to_string(iteration_counter);
-    drawText(iterationText.c_str(), 80, 1000, 250, 0.0f, 0.0f, 0.0f, true);
-    drawText("You just completed the final iteration. All previous steps can be seen on the left.", startText, 850, textWidth, 0.0f, 0.0f, 0.0f);
 
-    drawButton("Conclude", startText, 80, textWidth, 50, changeScreen, 9);
+void surveyScreen() {
+    drawText("1. Did you like the assignment?", 400, 800, 400, 0.0f, 0.0f, 0.0f);
+    drawButton("1", 300, 750, 50, 30, buttonClicked, 1);
+    drawButton("2", 350, 750, 50, 30, buttonClicked, 1);
+    drawButton("3", 400, 750, 50, 30, buttonClicked, 1);
+    drawButton("4", 450, 750, 50, 30, buttonClicked, 1);
+    drawButton("5", 500, 750, 50, 30, buttonClicked, 1);
+    drawButton("6", 550, 750, 50, 30, buttonClicked, 1);
+    drawButton("7", 600, 750, 50, 30, buttonClicked, 1);
+    drawButton("8", 650, 750, 50, 30, buttonClicked, 1);
+    drawButton("9", 700, 750, 50, 30, buttonClicked, 1);
+    drawButton("10", 750, 750, 50, 30, buttonClicked, 1);
 
-    deletionConfirmed = false;
-    splittingConfirmed = false;
-    removeSpace.text = "";
-    splitSpace.text = "";
-}
+    drawText("Please explain:", 300, 630, 200, 0.0f, 0.0f, 0.0f);
+    drawTextField(300, 400, 300, 200, explanation);
 
-float surveyStart = 100;
-float surveyWidth = 800;
-float buttonWidth = 50;
-float totalSpacingWidth = surveyWidth - (5 * buttonWidth);
-float spacing = totalSpacingWidth / 4;
+    glColor3f(0.0, 0.0, 0.0);
+    glBegin(GL_LINES);
+    glVertex2f(1400.0f, 0.0f);    // Start point of the line at the top
+    glVertex2f(1400.0f, screenHeight); // End point of the line at the bottom
+    glEnd();
 
-void surveyScreen1() {
-    drawText("Survey", surveyStart, 1000, surveyWidth, 0.0f, 0.0f, 0.0f, true);
-    drawText("Question 1/6", surveyStart + surveyWidth - 100, 1000, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("How satisfied were you with the overall design process you experienced?", surveyStart, 900, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawButton("1", surveyStart, 800, buttonWidth, 30, buttonClicked, 1);
-    drawButton("2", surveyStart + buttonWidth + spacing, 800, buttonWidth, 30, buttonClicked, 2);
-    drawButton("3", surveyStart + 2 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 3);
-    drawButton("4", surveyStart + 3 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 4);
-    drawButton("5", surveyStart + 4 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 5);
-
-    drawText("1: Very Unsatisfied", surveyStart, 750, textWidth, 0.0f, 0.0f, 0.0f);
-    drawText("5: Very Satisfied", surveyStart + surveyWidth - 100, 750, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("Please explain your answer:", surveyStart, 450, surveyWidth, 0.0f, 0.0f, 0.0f);
-    drawTextField(surveyStart, 400, surveyWidth, 300, survey1);
-
-    drawButton("Next", 100, surveyStart, surveyWidth, 50, [](int){logAction(std::stoi(getSelectedButtonLabel()), "How satisfied were you with the overall design process you experienced?", survey1.text); changeScreen(10);}, 0);
-}
-
-void surveyScreen2() {
-    drawText("Survey", surveyStart, 1000, surveyWidth, 0.0f, 0.0f, 0.0f, true);
-    drawText("Question 2/6", surveyStart + surveyWidth - 100, 1000, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("How easy was it to use the design tools provided?", surveyStart, 900, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawButton("1", surveyStart, 800, buttonWidth, 30, buttonClicked, 1);
-    drawButton("2", surveyStart + buttonWidth + spacing, 800, buttonWidth, 30, buttonClicked, 2);
-    drawButton("3", surveyStart + 2 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 3);
-    drawButton("4", surveyStart + 3 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 4);
-    drawButton("5", surveyStart + 4 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 5);
-
-    drawText("1: Very Difficult", surveyStart, 750, textWidth, 0.0f, 0.0f, 0.0f);
-    drawText("5: Very Easy", surveyStart + surveyWidth - 100, 750, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("Please explain your answer:", surveyStart, 450, surveyWidth, 0.0f, 0.0f, 0.0f);
-    drawTextField(surveyStart, 400, surveyWidth, 300, survey2);
-
-    drawButton("Next", 100, surveyStart, surveyWidth, 50, [](int){logAction(std::stoi(getSelectedButtonLabel()), "How easy was it to use the design tools provided?", survey2.text); changeScreen(11);}, 0);
-}
-
-void surveyScreen3() {
-    drawText("Survey", surveyStart, 1000, surveyWidth, 0.0f, 0.0f, 0.0f, true);
-    drawText("Question 3/6", surveyStart + surveyWidth - 100, 1000, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("How satisfied are you with the design decisions you made?", surveyStart, 900, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawButton("1", surveyStart, 800, buttonWidth, 30, buttonClicked, 1);
-    drawButton("2", surveyStart + buttonWidth + spacing, 800, buttonWidth, 30, buttonClicked, 2);
-    drawButton("3", surveyStart + 2 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 3);
-    drawButton("4", surveyStart + 3 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 4);
-    drawButton("5", surveyStart + 4 * (buttonWidth + spacing), 800, buttonWidth, 30, buttonClicked, 5);
-
-    drawText("1: Complete Dissatisfaction", surveyStart, 750, textWidth, 0.0f, 0.0f, 0.0f);
-    drawText("5: Complete Satisfaction", surveyStart + surveyWidth - 100, 750, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("Please explain your answer:", surveyStart, 450, surveyWidth, 0.0f, 0.0f, 0.0f);
-    drawTextField(surveyStart, 400, surveyWidth, 300, survey3);
-
-    drawButton("Next", 100, surveyStart, surveyWidth, 50, [](int){logAction(std::stoi(getSelectedButtonLabel()), "How satisfied are you with the design decisions you made?", survey3.text); changeScreen(12);}, 0);
-}
-
-void surveyScreen4() {
-    drawText("Survey", surveyStart, 1000, surveyWidth, 0.0f, 0.0f, 0.0f, true);
-    drawText("Question 4/6", surveyStart + surveyWidth - 100, 1000, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("How do you think having AI assistance would have changed your design process?", surveyStart, 900, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("Please explain your answer:", surveyStart, 450, surveyWidth, 0.0f, 0.0f, 0.0f);
-    drawTextField(surveyStart, 400, surveyWidth, 300, survey4);
-
-    drawButton("Next", 100, surveyStart, surveyWidth, 50, [](int){logAction(std::stoi(getSelectedButtonLabel()), "How do you think having AI assistance would have changed your design process?", survey4.text); changeScreen(13);}, 0);
-}
-
-void surveyScreen5() {
-    drawText("Survey", surveyStart, 1000, surveyWidth, 0.0f, 0.0f, 0.0f, true);
-    drawText("Question 5/6", surveyStart + surveyWidth - 100, 1000, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("Would you choose to use this design process in future projects based on your current experience?", surveyStart, 900, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText(" Please explain why or why not.", surveyStart, 450, surveyWidth, 0.0f, 0.0f, 0.0f);
-    drawTextField(surveyStart, 400, surveyWidth, 300, survey5);
-
-    drawButton("Next", 100, surveyStart, surveyWidth, 50, [](int){logAction(std::stoi(getSelectedButtonLabel()), "Would you choose to use this design process in future projects based on your current experience?", survey5.text); changeScreen(14);}, 0);
-}
-
-void surveyScreen6() {
-    drawText("Survey", surveyStart, 1000, surveyWidth, 0.0f, 0.0f, 0.0f, true);
-    drawText("Question 6/6", surveyStart + surveyWidth - 100, 1000, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.", surveyStart, 900, surveyWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("Please explain your answer:", surveyStart, 450, surveyWidth, 0.0f, 0.0f, 0.0f);
-    drawTextField(surveyStart, 400, surveyWidth, 300, survey6);
-
-    drawButton("Next", 100, surveyStart, surveyWidth, 50, [](int){logAction(std::stoi(getSelectedButtonLabel()), "Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.", survey6.text); changeScreen(15);}, 0);
-    writeToProcessFile("Data.csv");
-}
-
-void outroScreen() {
-    glEnable(GL_LIGHTING); // Enable to show image becomes black
-    glEnable(GL_LIGHT0); // Enable to prevent image becomes black
-
-    float picWidth = screenWidth / 1.28f; // Width of the picture as specified.
-    float picHeight = screenHeight;
-    displayTexture(imgVilla, 0, 0, picWidth, picHeight);
-
-    glDisable(GL_LIGHTING); //Disbale for other GUI elements
-    glDisable(GL_LIGHT0); //Disbale for other GUI elements
-
-    // Draw the title
-    drawText("Simulation of Co-evolutionary Design Processes", startText, 1000, textWidth, 0.0f, 0.0f, 0.0f, true);
-    drawText("You are about to start an assignment involving a simulation of co-evolutionary design processes. You will start with a building spatial design from the villa to the left. You will optimize this spatial design by adpating the spatial design, based on the structural model.", startText, 900, textWidth, 0.0f, 0.0f, 0.0f);
-
-    drawText("Please read the instructions carefully at the top of each screen. If you have any questions, please raise your hand.", startText, 200, textWidth, 0.0f, 0.0f, 0.0f);
-
-    drawButton("Start assignment", startText, 80, textWidth, 50, changeScreen, 1);
+    drawButton("Next", 1590, 50, 200, 50, buttonClicked, 1);
 }
 
 int main(int argc, char** argv) {
     // Initialize GLUT
     glutInit(&argc, argv);
-    initializeModels();
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(screenWidth, screenHeight);
     glutCreateWindow("Design studio: Simulation of Co-evolutionary Design Processes");
