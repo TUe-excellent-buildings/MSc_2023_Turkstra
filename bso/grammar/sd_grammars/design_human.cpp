@@ -44,7 +44,8 @@ bso::structural_design::sd_model grammar::sd_grammar<DESIGN_HUMAN>(
 	for (const auto& i : mSDRectangleRules)
 	{ // for each sd rectangle rule
 		for (const auto& j : i.first->cfLines()) {
-			if (mSDLineRules.find(j) == mSDLineRules.end()) {  // Removed the semicolon
+			if (mSDLineRules.find(j) == mSDLineRules.end());
+			{ 
 				mSDLineRules[j] = new rule_set::sd_line_rule(mLineProperties[j]);
 			}
 		}
@@ -77,8 +78,6 @@ bso::structural_design::sd_model grammar::sd_grammar<DESIGN_HUMAN>(
 		}
 	}
 
-
-	std::cout << "GRM nr subrec: " << subRectangles.size() << std::endl;
 	// inventory the rectangles that must be substituted
 	std::vector<bso::spatial_design::conformal::cf_rectangle*> mustSubstitute;
 
@@ -89,21 +88,35 @@ bso::structural_design::sd_model grammar::sd_grammar<DESIGN_HUMAN>(
 	}
 
 	// Now assign mustSubstitute to the SD model
+	std::cout<<"Must substitute size: "<< mustSubstitute.size()<<std::endl;
 	for (const auto& rectangle : mustSubstitute) {
 		mSDModel.addSubRectangle(rectangle);  // Add each rectangle to the SD model
 	}
 
-	//unsigned int nSubRectangles = subRectangles.size();
-    //std::cout << "Mustsubstitue size: " << mustSubstitute.size() << std::endl;
-	std::cout << "GRM nr subrecsize: " << mSDModel.getSubRectangles().size() << std::endl;
+
+	// Vector to store rule sets instead of rectangle identifiers
+	std::vector<rule_set::sd_rectangle_rule*> mustSubstituteRules;
+
+	// Add all rectangle rule sets to the list that must be substituted.
+	for (const auto& j : subRectangles) {
+		mustSubstituteRules.push_back(j.second); // Store the rule set pointers
+	}
+
+	// Now assign mustSubstituteRules to the SD model
+	std::cout << "Must substitute rule set size: " << mustSubstituteRules.size() << std::endl;
+	for (const auto& rule : mustSubstituteRules) {
+		mSDModel.addSubRectangleRule(rule);  // Add each rule to the SD model
+	}
+
+	std::cout << "GRM RectangleRules size: " << mSDModel.getSubRectangleRules().size() << std::endl;
 	std::cout << "GRM Strain:" << mSDModel.getTotalResults().mTotalStrainEnergy << std::endl;
     std::cout << "GRM Volume:" << mSDModel.getTotalResults().mTotalStructuralVolume << std::endl;
 
 
 	// delete the rules
-	for (auto& i : mSDVertexRules) delete i.second;
-	for (auto& i : mSDLineRules) delete i.second;
-	for (auto& i : mSDRectangleRules) delete i.second;
+	//for (auto& i : mSDVertexRules) delete i.second;
+	//for (auto& i : mSDLineRules) delete i.second;
+	//for (auto& i : mSDRectangleRules) delete i.second;
 
 	return mSDModel;
 } // default_sd_grammar
