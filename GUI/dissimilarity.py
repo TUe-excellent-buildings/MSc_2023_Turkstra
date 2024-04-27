@@ -285,6 +285,7 @@ def polyhedron(poly, p, heights):
     #A - not unique vertices of external edges of space p [1, 2, level]
     A = []
 
+
     for a in ext_edges_spaces(poly)[p]:
         A.append([a[0], a[1], a[4]])
         A.append([a[2], a[3], a[4]])
@@ -306,7 +307,7 @@ def polyhedron(poly, p, heights):
     #height of the space
     s = 0
     for l in range(np.min(b), np.max(b)+1):
-        s += heights[l]
+        s += heights[l] 
         
     #If space p is located on one level = max(b), we create a polyhhedron with coordinates [max(b), max(b) + 1]
 
@@ -864,59 +865,126 @@ def scal_dis(building1, heights1, building2, heights2, r, w0, w1, w2):
     a = opt_vec_dis(building1, heights1, building2, heights2, r)
     return (w0 * a[0] + w1 * a[1] + w2 *a[2])/3
 
+def get_levels(z_coords):
+    unique_heights = set(height for pair in z_coords for height in pair)
+    sorted_heights = sorted(unique_heights)
+    
+    # Calculate differences between consecutive heights
+    height_diff = [sorted_heights[i+1] - sorted_heights[i] for i in range(len(sorted_heights) - 1)]
+    height_diff = [sorted_heights[1]] + height_diff
+    
+    levels = {height: idx for idx, height in enumerate(sorted_heights)}
+    heights = {idx: height for idx, height in enumerate(sorted_heights)}
+    height_diff = {idx: int(height/1000) for idx, height in enumerate(height_diff)}
+    
+    return levels, heights, height_diff
+
+def make_coords_positive(buildings):
+    min_x, min_y = 0, 0
+    for building in buildings:
+        for point in building[:3]:
+            min_x = min(min_x, point[0])
+            min_y = min(min_y, point[1])
+
+    
+    for building in buildings:
+        for i in range(3):
+            x = building[i][0]
+            y = building[i][1]
+            building[i] = [x + abs(min_x), y + abs(min_y)]
+            
+    return buildings
+
 def read_building(filename):
-    building = []
+    buildings = []
+    final_buildings = []
     z_coords = []
-    heights = {}
-    z = 0
-    with open(filename) as file:
+    z_diff = {}
+
+    with open(filename, newline='') as file:
         reader = csv.reader(file)
         for row in reader:
-            building.append([[int(row[1]), int(row[2])], [int(row[4]), int(row[5])], [int(row[7]), int(row[8])], int(row[0]), 10]) # Change last term once we know more about it
-            if(int(row[0]) not in heights):
-                heights[int(row[0])] = int(abs(int(row[18]) - int(row[3]))/1000)
-            z_coords.append((min(int(row[18]), int(row[3])), max(int(row[18]), int(row[3])), z))
-            z += 1
-    sorted_z_coords = sorted(z_coords, key=lambda x: x[0])
+            space = int(row[0])
+            x1, y1 = int(row[1]), int(row[2])
+            x2, y2 = int(row[3]), int(row[4])
+            x3, y3 = int(row[5]), int(row[6])
+            z1, z2 = int(row[7]), int(row[8])
+            z1, z2 = min(z1, z2), max(z1, z2)
 
-    z = 1
-    final_levels = {}
-    final_levels[sorted_z_coords[0][2]] = 0
-    while(z < len(sorted_z_coords)):
-        if(sorted_z_coords[z][0] == sorted_z_coords[z-1][0]):
-            final_levels[sorted_z_coords[z][2]] = final_levels[sorted_z_coords[z-1][2]]
-        else:
-            final_levels[sorted_z_coords[z][2]] = final_levels[sorted_z_coords[z-1][2]] + 1
-        z += 1
+            buildings.append([[x1, y1], [x2, y2], [x3, y3], [z1, z2], space])
+
+            if(space not in z_diff):
+                z_diff[space] = max(z2,z1) - min(z2, z1)
+
+    levels, heights, height_diff = get_levels([building[3] for building in buildings])
+
+    for building in buildings:
+        level_ids = [i for i in range(len(heights)) if building[3][0] <= heights[i] <= building[3][1]]
+
+        for level in level_ids:
+            # print([building[0], building[1], building[2], level, building[4]])
+            final_buildings.append([building[0], building[1], building[2], level, building[4]])
+
     
-    print(final_levels)
-    for n, i in enumerate(building):
-        i[4] = final_levels[n]
-    return building, heights
+    #final_buildings = make_coords_positive(final_buildings)
 
 
-def standardize_dim(building):
-    x = []
-    plus_x = 0
-    y = []
-    plus_y = 0
-    for i in building:
-        for j in range(3):
-            if(i[j][0] < 0 and i[j][0] < plus_x):
-                plus_x = abs(i[j][0])
-            if(i[j][1] < 0 and i[j][1] < plus_y):
-                plus_y = abs(i[j][1])
-            x.append(i[j][0])
-            y.append(i[j][1])
-    for i in building:
-        for j in range(3):
-            i[j][0] += plus_x
-            i[j][0] /= 1000
-            i[j][0] = int(i[j][0])
-            i[j][1] += plus_y
-            i[j][1] /= 1000
-            i[j][1] = int(i[j][1])
-    return building
+    return final_buildings, defaultdict(None, height_diff)
+    #return final_buildings, defaultdict(None, z_diff)
+
+def create_triangles(vertices):
+    # Assuming the vertices are [bottom-left, bottom-right, top-right, top-left]
+    triangle1 = [vertices[0], vertices[1], vertices[3]]  # Using bottom-left, bottom-right, top-left
+    triangle2 = [vertices[1], vertices[2], vertices[3]]  # Using bottom-right, top-right, top-left
+    return triangle1, triangle2
+
+def read_building2(filename):
+    buildings = []
+    final_buildings = []
+    z_coords = []
+    z_diff = {}
+    reader = csv.reader(open(filename, newline=''))
+    for row in reader:
+        space = int(row[0])
+        x1, y1 = int(row[1]), int(row[2])
+        x2, y2 = int(row[3]), int(row[4])
+        x3, y3 = int(row[5]), int(row[6])
+        x4, y4 = int(row[7]), int(row[8])
+        x5, y5 = int(row[9]), int(row[10])
+        x6, y6 = int(row[11]), int(row[12])
+        x7, y7 = int(row[13]), int(row[14])
+        x8, y8 = int(row[15]), int(row[16])
+        z1, z2 = int(row[17]), int(row[18])
+
+        data = [[x1, y1], [x2, y2], [x3, y3], [x4, y4], [x5, y5], [x6, y6], [x7, y7], [x8, y8]]
+        vertices = [list(x) for x in set(tuple(x) for x in data)]
+        if len(vertices) == 4:
+            t1, t2 = create_triangles(vertices)
+            zmin = min(z1, z2)
+            zmax = max(z1, z2)
+            buildings.append([*t1, [zmin, zmax], space])
+            buildings.append([*t2, [zmin, zmax], space])
+        
+        if(space not in z_diff):
+                z_diff[space] = max(z2,z1) - min(z2, z1)
+    
+    levels, heights, height_diff = get_levels([building[3] for building in buildings])
+
+    for building in buildings:
+        level_ids = [i for i in range(len(heights)) if building[3][0] <= heights[i] <= building[3][1]]
+
+        for level in level_ids:
+            # print([building[0], building[1], building[2], level, building[4]])
+            final_buildings.append([building[0], building[1], building[2], level, building[4]])
+
+    print(final_buildings)
+    print()
+    print()
+    print()
+
+
+    return final_buildings, defaultdict(None, height_diff)
+
 
 buildings = [[[[0, 0], [0, 3], [2, 3], 0, 9], #building[0]
   [[0, 0], [3, 3], [2, 3], 0, 9],
@@ -1004,13 +1072,13 @@ heightss = [defaultdict(None, {0: 4, 1: 3, 2: 1, 3: 4}),
  defaultdict(None, {0: 1, 1: 1, 2: 3, 3: 4}),
  defaultdict(None, {0: 4, 1: 3, 2: 4, 3: 2})]
 
-building_1, heights_1 = read_building('comparison1.txt')
-building_2, heights_2 = read_building('comparison2.txt')
 
-building_1 = standardize_dim(building_1)
-building_2 = standardize_dim(building_2)
+def main_func():
+    building_1, heights_1 = read_building2('comparison1.txt')
+    building_2, heights_2 = read_building2('comparison2.txt')
 
-print(building_1, heights_1)
-print(building_2, heights_2)
+    result = scal_dis(building_2, heights_2, building_1, heights_1, 1, 1, 1, 1)
+    print(result)
+    return result
 
-print(scal_dis(building_1, heights_1, building_2, heights_2, 1, 1, 1, 1))
+main_func()
