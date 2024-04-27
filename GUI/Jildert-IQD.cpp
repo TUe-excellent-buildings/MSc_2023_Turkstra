@@ -45,12 +45,18 @@ void printCF(bso::spatial_design::cf_building CF, int design) {
     std::cout << "CF Model" << std::endl;
     std::cout << "Spaces: " << CF.cfSpaces().size() << std::endl;
     int k = 0;
-    for (auto vertex : CF.cfVertices()) {
-        std::vector<bso::spatial_design::conformal::cf_vertex*> vertices;
-        // std::cout << "Space " << k << std::endl;
-        // std::cout << "Vertices: " << space->cfVertices().size() << std::endl;
-        vertices.push_back(vertex);
-        printPrisms2(vertices, outFile, design, k);
+    for (auto space : CF.cfSpaces()) {
+        std::cout << "Space " << k << std::endl;
+        std::cout << "Cuboids: " << space->cfCuboids().size() << std::endl;
+        for(auto cuboid : space->cfCuboids()) {
+            std::vector<bso::spatial_design::conformal::cf_vertex*> vertices;
+            // vertices.push_back(vertex);
+            std::cout << "Vertices: " << cuboid->cfVertices().size() << std::endl;
+            for(auto vertex : cuboid->cfVertices()) {
+                vertices.push_back(vertex);
+            }
+            printPrisms2(vertices, outFile, design, k);
+        }
         k++;
     }
 }
@@ -77,7 +83,7 @@ int main() {
 
     std::cout << "Post sleep\n";
 
-    std::cout << exec("source ../env/bin/activate && python3 dissimilarity.py");
+    std::cout << exec("source ../../MSc_2023_Heuvelman/env/bin/activate && python3 dissimilarity.py");
 
     std::cout << "Executed python\n";
 
