@@ -895,47 +895,38 @@ def make_coords_positive(buildings):
             
     return buildings
 
-def read_building(filename):
-    buildings = []
+def calculate_level_midpoints(heights):
+    sorted_heights = sorted(heights.items(), key=lambda x: x[1])  # Sort levels by height
+    midpoints = {}
+    for i in range(len(sorted_heights) - 1):
+        current_height = sorted_heights[i][1]
+        next_height = sorted_heights[i + 1][1]
+        midpoint = (current_height + next_height) / 2
+        midpoints[sorted_heights[i][0]] = midpoint
+    # Assuming the top level extends infinitely upwards
+    midpoints[sorted_heights[-1][0]] = float('inf')
+    return midpoints
+
+def assign_levels_to_buildings(buildings, midpoints):
     final_buildings = []
-    z_coords = []
-    z_diff = {}
-
-    with open(filename, newline='') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            space = int(row[0])
-            x1, y1 = int(row[1]), int(row[2])
-            x2, y2 = int(row[3]), int(row[4])
-            x3, y3 = int(row[5]), int(row[6])
-            z1, z2 = int(row[7]), int(row[8])
-            z1, z2 = min(z1, z2), max(z1, z2)
-
-            buildings.append([[x1, y1], [x2, y2], [x3, y3], [z1, z2], space])
-
-            if(space not in z_diff):
-                z_diff[space] = max(z2,z1) - min(z2, z1)
-
-    levels, heights, height_diff = get_levels([building[3] for building in buildings])
-
     for building in buildings:
-        level_ids = [i for i in range(len(heights)) if building[3][0] <= heights[i] <= building[3][1]]
+        z_min, z_max = building[3]
+        # Find the closest level for the midpoint of the building's z-range
+        building_mid_z = (z_min + z_max) / 2
+        closest_level = min(midpoints.keys(), key=lambda k: abs(midpoints[k] - building_mid_z))
+        final_buildings.append([building[0], building[1], building[2], closest_level, building[4]])
+    return final_buildings
 
-        for level in level_ids:
-            # print([building[0], building[1], building[2], level, building[4]])
-            final_buildings.append([building[0], building[1], building[2], level, building[4]])
-
-    
-    #final_buildings = make_coords_positive(final_buildings)
-
-
-    return final_buildings, defaultdict(None, height_diff)
-    #return final_buildings, defaultdict(None, z_diff)
+# def create_triangles(vertices):
+#     # Assuming the vertices are [bottom-left, bottom-right, top-right, top-left]
+#     triangle1 = [vertices[0], vertices[1], vertices[3]]  # Using bottom-left, bottom-right, top-left
+#     triangle2 = [vertices[1], vertices[2], vertices[3]]  # Using bottom-right, top-right, top-left
+#     return triangle1, triangle2
 
 def create_triangles(vertices):
-    # Assuming the vertices are [bottom-left, bottom-right, top-right, top-left]
-    triangle1 = [vertices[0], vertices[1], vertices[3]]  # Using bottom-left, bottom-right, top-left
-    triangle2 = [vertices[1], vertices[2], vertices[3]]  # Using bottom-right, top-right, top-left
+    vertices.sort(key=lambda x: (x[0], x[1]))
+    triangle1 = [vertices[0], vertices[2], vertices[1]]
+    triangle2 = [vertices[1], vertices[2], vertices[3]]
     return triangle1, triangle2
 
 def read_building2(filename):
@@ -944,7 +935,10 @@ def read_building2(filename):
     z_coords = []
     z_diff = {}
     reader = csv.reader(open(filename, newline=''))
+    global_z_max = 0
     for row in reader:
+        if(row == []):
+            continue
         space = int(row[0])
         x1, y1 = int(row[1]), int(row[2])
         x2, y2 = int(row[3]), int(row[4])
@@ -954,7 +948,9 @@ def read_building2(filename):
         x6, y6 = int(row[11]), int(row[12])
         x7, y7 = int(row[13]), int(row[14])
         x8, y8 = int(row[15]), int(row[16])
-        z1, z2 = int(row[17]), int(row[18])
+        z1, z2 = min(int(row[17]), int(row[18])), max(int(row[17]), int(row[18]))
+
+        global_z_max = max(global_z_max, z2)
 
         data = [[x1, y1], [x2, y2], [x3, y3], [x4, y4], [x5, y5], [x6, y6], [x7, y7], [x8, y8]]
         vertices = [list(x) for x in set(tuple(x) for x in data)]
@@ -970,12 +966,8 @@ def read_building2(filename):
     
     levels, heights, height_diff = get_levels([building[3] for building in buildings])
 
-    for building in buildings:
-        level_ids = [i for i in range(len(heights)) if building[3][0] <= heights[i] <= building[3][1]]
-
-        for level in level_ids:
-            # print([building[0], building[1], building[2], level, building[4]])
-            final_buildings.append([building[0], building[1], building[2], level, building[4]])
+    midpoints = calculate_level_midpoints(heights)
+    final_buildings = assign_levels_to_buildings(buildings, midpoints)
 
     print(final_buildings)
     print()
