@@ -1,0 +1,81 @@
+Time;Iteration;Description;Value
+16:03:44;1;Entered Screen;1
+16:05:17;1;Time Spent;92
+16:05:17;1;Entered Screen;2
+16:07:11;1;Time Spent;114
+16:07:11;1;Entered Screen;3
+16:24:44;1;Total strain energy;2,20E+06
+16:24:44;1;Total structural volume;9,15E+10
+16:24:44;1;1, Space ID: 7;1240000
+16:24:44;1;2, Space ID: 9;339585
+16:24:44;1;3, Space ID: 8;295616
+16:24:44;1;4, Space ID: 10;295072
+16:24:44;1;5, Space ID: 2;191286
+16:24:44;1;6, Space ID: 3;116693
+16:24:44;1;7, Space ID: 1;87298
+16:24:44;1;8, Space ID: 4;59151,4
+16:24:44;1;9, Space ID: 6;39193
+16:24:44;1;10, Space ID: 5;35639,1
+16:24:44;1;Number of beams;27
+16:24:44;1;Number of trusses;13
+16:24:44;1;Number of flat shells;10
+16:24:44;1;Time Spent;1053
+16:24:44;1;Entered Screen;5
+16:25:52;1;Space Removed;10
+16:26:05;1;Time Spent;81
+16:26:05;1;Entered Screen;6
+16:26:58;1;Space Split;5
+16:26:58;1;Scale Factor;1,0378
+16:27:00;1;Time Spent;54
+16:27:00;1;Entered Screen;7
+16:27:26;2;Time Spent;25
+16:27:26;2;Entered Screen;1
+16:28:00;2;Time Spent;34
+16:28:00;2;Entered Screen;2
+16:28:09;2;Time Spent;8
+16:28:09;2;Entered Screen;4
+16:34:51;2;Total strain energy;2,04E+06
+16:34:51;2;Total structural volume;5,74E+10
+16:34:51;2;1, Space ID: 7;1450000
+16:34:51;2;2, Space ID: 1;212632
+16:34:51;2;3, Space ID: 8;192776
+16:34:51;2;4, Space ID: 9;173268
+16:34:51;2;5, Space ID: 2;151726
+16:34:51;2;6, Space ID: 3;122801
+16:34:51;2;7, Space ID: 4;70996,4
+16:34:51;2;8, Space ID: 6;55709,2
+16:34:51;2;9, Space ID: 12;20318,5
+16:34:51;2;10, Space ID: 11;8474,37
+16:34:51;2;Number of beams;23
+16:34:51;2;Number of trusses;21
+16:34:51;2;Number of flat shells;1
+16:34:51;2;Time Spent;402
+16:34:51;2;Entered Screen;5
+16:35:04;2;Space Removed;7
+16:35:07;2;Time Spent;15
+16:35:07;2;Entered Screen;6
+16:35:44;2;Space Split;9
+16:35:44;2;Scale Factor;1,2018
+16:35:46;2;Time Spent;39
+16:35:46;2;Entered Screen;8
+16:36:06;2;Time Spent;19
+16:36:06;2;Entered Screen;9
+16:39:58;2;How satisfied were you with the overall design process you experienced?;Overall, I liked the concept of the assignment. It was nice to think about how to make this building stable. But working with the program could have been better. When asigning the three types of walls to the rectangles. The Green model of the building, with the volumes was not visable anymore. Therefore I forgat where I could place walls. What also was incovient, is that there were 50 rectangles that had to be assigned, and there wasnt an indication which number was which wall. So, when you wanted to make a truss at a location, you had to click every one of them to find the wall you were looking for. This took some time. Numbers at the walls would have been nice.
+16:39:58;2;Time Spent;232
+16:39:58;2;Entered Screen;10
+16:40:26;3;How easy was it to use the design tools provided?;as explained at the previous question.
+16:40:26;2;Time Spent;28
+16:40:26;2;Entered Screen;11
+16:42:36;3;How satisfied are you with the design decisions you made?;At the first one. I found out at the end that I couldnt place a truss at a place I wanted because it was inside a volume, but I didnt know that it was a volume, because the green picture was not there anymore. And to go over every of the 50 numbers again to change it, would have taken a lot of time. also  to figer out which number coresponds to which rectangle.
+16:42:36;2;Time Spent;129
+16:42:36;2;Entered Screen;12
+16:43:02;0;How do you think having AI assistance would have changed your design process?;It could have helpt to chosse lines wehre stability is needed.
+16:43:02;2;Time Spent;25
+16:43:02;2;Entered Screen;13
+16:43:18;0;Would you choose to use this design process in future projects based on your current experience?;With some changes yes
+16:43:18;2;Time Spent;16
+16:43:18;2;Entered Screen;14
+16:43:35;0;Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.;mentioned in previous questions
+16:43:35;2;Time Spent;16
+16:43:35;2;Entered Screen;15
+;;;

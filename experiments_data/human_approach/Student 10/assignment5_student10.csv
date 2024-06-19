@@ -1,0 +1,81 @@
+Time;Iteration;Description;Value
+17:09:55;1;Entered Screen;1
+17:10:37;1;Time Spent;41
+17:10:37;1;Entered Screen;2
+17:11:00;1;Time Spent;23
+17:11:00;1;Entered Screen;3
+17:31:45;1;Total strain energy;3,36E+06
+17:31:45;1;Total structural volume;9,49E+10
+17:31:45;1;1, Space ID: 7;1650000
+17:31:45;1;2, Space ID: 9;861605
+17:31:45;1;3, Space ID: 8;641194
+17:31:45;1;4, Space ID: 3;422662
+17:31:45;1;5, Space ID: 4;301937
+17:31:45;1;6, Space ID: 2;274938
+17:31:45;1;7, Space ID: 1;215543
+17:31:45;1;8, Space ID: 10;193219
+17:31:45;1;9, Space ID: 5;118341
+17:31:45;1;10, Space ID: 6;69138,7
+17:31:45;1;Number of beams;37
+17:31:45;1;Number of trusses;6
+17:31:45;1;Number of flat shells;7
+17:31:45;1;Time Spent;1245
+17:31:45;1;Entered Screen;5
+17:32:24;1;Space Removed;10
+17:32:30;1;Time Spent;45
+17:32:30;1;Entered Screen;6
+17:32:40;1;Space Split;7
+17:32:40;1;Scale Factor;1,0378
+17:32:42;1;Time Spent;12
+17:32:42;1;Entered Screen;7
+17:32:46;2;Time Spent;3
+17:32:46;2;Entered Screen;1
+17:32:47;2;Time Spent;1
+17:32:47;2;Entered Screen;2
+17:32:50;2;Time Spent;2
+17:32:50;2;Entered Screen;4
+17:40:23;2;Total strain energy;3,76E+06
+17:40:23;2;Total structural volume;6,85E+10
+17:40:24;2;1, Space ID: 11;1430000
+17:40:24;2;2, Space ID: 12;1250000
+17:40:24;2;3, Space ID: 8;683139
+17:40:24;2;4, Space ID: 9;564045
+17:40:24;2;5, Space ID: 1;365654
+17:40:24;2;6, Space ID: 2;316711
+17:40:24;2;7, Space ID: 3;259689
+17:40:24;2;8, Space ID: 5;69728,3
+17:40:24;2;9, Space ID: 4;60620,1
+17:40:24;2;10, Space ID: 6;49958,5
+17:40:24;2;Number of beams;31
+17:40:24;2;Number of trusses;8
+17:40:24;2;Number of flat shells;6
+17:40:24;2;Time Spent;453
+17:40:24;2;Entered Screen;5
+17:40:39;2;Space Removed;9
+17:40:41;2;Time Spent;17
+17:40:41;2;Entered Screen;6
+17:40:55;2;Space Split;3
+17:40:55;2;Scale Factor;1,0871
+17:40:57;2;Time Spent;15
+17:40:57;2;Entered Screen;8
+17:41:09;2;Time Spent;12
+17:41:09;2;Entered Screen;9
+17:41:57;3;How satisfied were you with the overall design process you experienced?;It was very hard to select the different squares and that took a long time and made it hard to change your design. But other than that it did work very easy
+17:41:57;2;Time Spent;48
+17:41:57;2;Entered Screen;10
+17:42:26;2;How easy was it to use the design tools provided?;Just clicking and everything was easy, but not knowing what changed in the design made it very difficult
+17:42:26;2;Time Spent;28
+17:42:26;2;Entered Screen;11
+17:42:44;4;How satisfied are you with the design decisions you made?;Yes, I think it works out with the space layout and how everything looks
+17:42:44;2;Time Spent;17
+17:42:44;2;Entered Screen;12
+17:43:10;0;How do you think having AI assistance would have changed your design process?;Maybe, but I would still go over it again to see if everything is divided how you want it to be
+17:43:10;2;Time Spent;25
+17:43:10;2;Entered Screen;13
+17:43:23;0;Would you choose to use this design process in future projects based on your current experience?;No, the selection made it very diffucult
+17:43:23;2;Time Spent;13
+17:43:23;2;Entered Screen;14
+17:44:13;0;Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.;Change how to assign the different types of structures, make it better visible. Other than that the visualization was nice to see everything immediatly in 3d
+17:44:13;2;Time Spent;50
+17:44:13;2;Entered Screen;15
+;;;

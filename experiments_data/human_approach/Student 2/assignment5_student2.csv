@@ -1,0 +1,81 @@
+Time;Iteration;Description;Value
+16:45:00;1;Entered Screen;1
+16:45:28;1;Time Spent;28
+16:45:28;1;Entered Screen;2
+16:46:19;1;Time Spent;50
+16:46:19;1;Entered Screen;3
+16:59:25;1;Total strain energy;2,74E+06
+16:59:25;1;Total structural volume;9,43E+10
+16:59:25;1;1, Space ID: 7;1420000
+16:59:25;1;2, Space ID: 3;396479
+16:59:25;1;3, Space ID: 1;324498
+16:59:25;1;4, Space ID: 2;322112
+16:59:25;1;5, Space ID: 8;283755
+16:59:25;1;6, Space ID: 4;205673
+16:59:25;1;7, Space ID: 9;183203
+16:59:25;1;8, Space ID: 10;122658
+16:59:25;1;9, Space ID: 5;76038,3
+16:59:25;1;10, Space ID: 6;74442
+16:59:25;1;Number of beams;20
+16:59:25;1;Number of trusses;22
+16:59:25;1;Number of flat shells;8
+16:59:25;1;Time Spent;786
+16:59:25;1;Entered Screen;5
+17:01:09;1;Space Removed;10
+17:01:14;1;Time Spent;109
+17:01:14;1;Entered Screen;6
+17:01:57;1;Space Split;5
+17:01:57;1;Scale Factor;1,0378
+17:02:00;1;Time Spent;46
+17:02:00;1;Entered Screen;7
+17:02:15;2;Time Spent;14
+17:02:15;2;Entered Screen;1
+17:02:40;2;Time Spent;24
+17:02:40;2;Entered Screen;2
+17:02:43;2;Time Spent;3
+17:02:43;2;Entered Screen;4
+17:09:03;2;Total strain energy;2,07E+06
+17:09:03;2;Total structural volume;9,18E+10
+17:09:03;2;1, Space ID: 7;1380000
+17:09:03;2;2, Space ID: 9;305896
+17:09:03;2;3, Space ID: 8;245933
+17:09:03;2;4, Space ID: 3;107593
+17:09:03;2;5, Space ID: 1;107345
+17:09:03;2;6, Space ID: 4;105109
+17:09:03;2;7, Space ID: 2;100215
+17:09:03;2;8, Space ID: 12;45345,8
+17:09:03;2;9, Space ID: 6;41272,3
+17:09:03;2;10, Space ID: 11;11662,3
+17:09:03;2;Number of beams;26
+17:09:03;2;Number of trusses;17
+17:09:03;2;Number of flat shells;2
+17:09:03;2;Time Spent;379
+17:09:03;2;Entered Screen;5
+17:09:30;2;Space Removed;11
+17:09:32;2;Time Spent;28
+17:09:32;2;Entered Screen;6
+17:10:10;2;Space Split;6
+17:10:10;2;Scale Factor;1,0198
+17:10:11;2;Time Spent;39
+17:10:11;2;Entered Screen;8
+17:10:28;2;Time Spent;16
+17:10:28;2;Entered Screen;9
+17:11:50;2;How satisfied were you with the overall design process you experienced?;I was quite frustrated by the fact that the wall numbers were not indicated on the walls itself. It would have been nice to either have the numbers indicated on the walls in the render, or be able to click on a wall on the render and then pick which structure type you want to use.
+17:11:50;2;Time Spent;82
+17:11:50;2;Entered Screen;10
+17:12:08;3;How easy was it to use the design tools provided?;Same answer as to question 1. 
+17:12:08;2;Time Spent;18
+17:12:08;2;Entered Screen;11
+17:12:12;3;How satisfied are you with the design decisions you made?;
+17:12:12;2;Time Spent;3
+17:12:12;2;Entered Screen;12
+17:12:54;0;How do you think having AI assistance would have changed your design process?;It would be nice to gain feedback on the design choices made. So have the AI give scores on the stability and efficiency of the stability design. 
+17:12:54;2;Time Spent;41
+17:12:54;2;Entered Screen;13
+17:13:28;0;Would you choose to use this design process in future projects based on your current experience?;If the walls are properly indicated, then yes!
+17:13:28;2;Time Spent;33
+17:13:28;2;Entered Screen;14
+17:13:31;0;Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.;
+17:13:31;2;Time Spent;2
+17:13:31;2;Entered Screen;15
+;;;

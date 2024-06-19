@@ -1,0 +1,81 @@
+Time;Iteration;Description;Value
+16:16:41;1;Entered Screen;1
+16:17:25;1;Time Spent;43
+16:17:25;1;Entered Screen;2
+16:18:37;1;Time Spent;72
+16:18:37;1;Entered Screen;3
+16:37:35;1;Total strain energy;1,02E+06
+16:37:35;1;Total structural volume;1,02E+11
+16:37:35;1;1, Space ID: 7;691460
+16:37:35;1;2, Space ID: 8;98398,4
+16:37:35;1;3, Space ID: 9;94721
+16:37:35;1;4, Space ID: 10;70909,4
+16:37:35;1;5, Space ID: 1;61579,5
+16:37:35;1;6, Space ID: 2;61501,6
+16:37:35;1;7, Space ID: 3;54400,1
+16:37:35;1;8, Space ID: 6;36536,1
+16:37:35;1;9, Space ID: 4;30819,3
+16:37:35;1;10, Space ID: 5;25387,3
+16:37:35;1;Number of beams;26
+16:37:35;1;Number of trusses;4
+16:37:35;1;Number of flat shells;20
+16:37:35;1;Time Spent;1138
+16:37:35;1;Entered Screen;5
+16:38:10;1;Space Removed;9
+16:38:15;1;Time Spent;39
+16:38:15;1;Entered Screen;6
+16:38:47;1;Space Split;7
+16:38:47;1;Scale Factor;1,0801
+16:38:49;1;Time Spent;33
+16:38:49;1;Entered Screen;7
+16:39:22;2;Time Spent;32
+16:39:22;2;Entered Screen;1
+16:40:04;2;Time Spent;42
+16:40:04;2;Entered Screen;2
+16:40:34;2;Time Spent;29
+16:40:34;2;Entered Screen;4
+16:46:50;2;Total strain energy;1,91E+06
+16:46:50;2;Total structural volume;9,67E+10
+16:46:51;2;1, Space ID: 11;751269
+16:46:51;2;2, Space ID: 12;618300
+16:46:51;2;3, Space ID: 1;396214
+16:46:51;2;4, Space ID: 3;280115
+16:46:51;2;5, Space ID: 2;135290
+16:46:51;2;6, Space ID: 8;130939
+16:46:51;2;7, Space ID: 10;81741,1
+16:46:51;2;8, Space ID: 4;32749,3
+16:46:51;2;9, Space ID: 5;21932,2
+16:46:51;2;10, Space ID: 6;21757,1
+16:46:51;2;Number of beams;24
+16:46:51;2;Number of trusses;8
+16:46:51;2;Number of flat shells;13
+16:46:51;2;Time Spent;376
+16:46:51;2;Entered Screen;5
+16:47:04;2;Space Removed;12
+16:47:10;2;Time Spent;18
+16:47:10;2;Entered Screen;6
+16:47:59;2;Space Split;6
+16:47:59;2;Scale Factor;1,0954
+16:48:02;2;Time Spent;52
+16:48:02;2;Entered Screen;8
+16:48:25;2;Time Spent;23
+16:48:25;2;Entered Screen;9
+16:49:20;3;How satisfied were you with the overall design process you experienced?;Since I did not really now what splitting and deleting would mean, I would have liked a third iteration so I could have made these decisions based on something
+16:49:20;2;Time Spent;54
+16:49:20;2;Entered Screen;10
+16:50:06;2;How easy was it to use the design tools provided?;It was quite difficult to find the correct switch for each wall. But it also did not help that I changed my mind constantly and needed to go back everytime. 
+16:50:06;2;Time Spent;45
+16:50:06;2;Entered Screen;11
+16:50:37;3;How satisfied are you with the design decisions you made?;Could have been a lot better, but it could also have been a lot worse.
+16:50:37;2;Time Spent;31
+16:50:37;2;Entered Screen;12
+16:51:45;0;How do you think having AI assistance would have changed your design process?;I think it would have helped, because I could for example let it generate a design that is structurally stable with at much windows as possible, which I would have liked. The only think you have to do then is check whether it is correct, instead of coming up with the design yourself
+16:51:45;2;Time Spent;68
+16:51:45;2;Entered Screen;13
+16:52:12;0;Would you choose to use this design process in future projects based on your current experience?;The iterations are nice, maybe if I new in advance what the effect of my choices would have been. 
+16:52:12;2;Time Spent;26
+16:52:12;2;Entered Screen;14
+16:52:50;0;Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.;It would have been nice to clearly indicate which switch is for which panel, for indecisive people like me.
+16:52:50;2;Time Spent;37
+16:52:50;2;Entered Screen;15
+;;;

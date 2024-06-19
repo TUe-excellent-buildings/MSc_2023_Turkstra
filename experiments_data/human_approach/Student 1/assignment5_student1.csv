@@ -1,0 +1,80 @@
+Time;Iteration;Description;Value
+16:38:48;1;Entered Screen;1
+16:39:51;1;Time Spent;62
+16:39:51;1;Entered Screen;2
+16:41:17;1;Time Spent;86
+16:41:17;1;Entered Screen;3
+16:59:45;1;Total strain energy;2,62E+06
+16:59:45;1;Total structural volume;80503400000
+16:59:45;1;1, Space ID: 7;1490000
+16:59:45;1;2, Space ID: 2;366605
+16:59:45;1;3, Space ID: 1;334235
+16:59:45;1;4, Space ID: 8;302610
+16:59:45;1;5, Space ID: 3;227512
+16:59:45;1;6, Space ID: 9;208443
+16:59:45;1;7, Space ID: 4;118917
+16:59:45;1;8, Space ID: 10;111372
+16:59:45;1;9, Space ID: 5;108018
+16:59:45;1;10, Space ID: 6;90104,4
+16:59:45;1;Number of beams;29
+16:59:45;1;Number of trusses;14
+16:59:45;1;Number of flat shells;7
+16:59:45;1;Time Spent;1107
+16:59:45;1;Entered Screen;5
+17:01:15;1;Space Removed;10
+17:01:36;1;Time Spent;110
+17:01:36;1;Entered Screen;6
+17:02:35;1;Space Split;7
+17:02:35;1;Scale Factor;1,0378
+17:02:37;1;Time Spent;61
+17:02:37;1;Entered Screen;7
+17:03:10;2;Time Spent;32
+17:03:10;2;Entered Screen;1
+17:03:29;2;Time Spent;19
+17:03:29;2;Entered Screen;2
+17:03:32;2;Time Spent;3
+17:03:32;2;Entered Screen;4
+17:12:10;2;Total strain energy;3,53E+06
+17:12:10;2;Total structural volume;94353900000
+17:12:10;2;1, Space ID: 11;1020000
+17:12:10;2;2, Space ID: 12;898885
+17:12:10;2;3, Space ID: 1;737436
+17:12:10;2;4, Space ID: 2;482488
+17:12:10;2;5, Space ID: 9;451189
+17:12:10;2;6, Space ID: 8;434594
+17:12:10;2;7, Space ID: 3;346833
+17:12:10;2;8, Space ID: 4;131998
+17:12:10;2;9, Space ID: 6;110414
+17:12:10;2;10, Space ID: 5;58317,6
+17:12:10;2;Number of beams;23
+17:12:10;2;Number of trusses;15
+17:12:10;2;Number of flat shells;7
+17:12:10;2;Time Spent;517
+17:12:10;2;Entered Screen;5
+17:12:32;2;Space Removed;11
+17:12:36;2;Time Spent;25
+17:12:36;2;Entered Screen;6
+17:13:19;2;Space Split;9
+17:13:19;2;Scale Factor;1
+17:13:21;2;Time Spent;44
+17:13:21;2;Entered Screen;8
+17:13:37;2;Time Spent;16
+17:13:37;2;Entered Screen;9
+17:15:56;2;How satisfied were you with the overall design process you experienced?;It was really hard to design in such a way, because you did not know which element was the one you were changing in the structure. Therefore you were looking and looking and looking. Most of the time I lost my thoughts because of this. But it was nice during the last part of the assignment to have the possibility to turn the model while deciding the removal or splitting 
+17:15:56;2;Time Spent;139
+17:15:56;2;Entered Screen;10
+17:16:39;1;How easy was it to use the design tools provided?;It was nice that you could turn around the model. But really difficult to see which element you were changing 
+17:16:39;2;Time Spent;43
+17:16:39;2;Entered Screen;11
+17:17:39;3;How satisfied are you with the design decisions you made?;The first time I was so lost in the search for which element was which I lost sight of what is was doing. The second time it went better but still nog very clear in my mind
+17:17:39;2;Time Spent;59
+17:17:39;2;Entered Screen;12
+17:18:48;0;How do you think having AI assistance would have changed your design process?;I find it hard to say something about this because it is not clear to me what the AI would do or provide during this designing process.
+17:18:48;2;Time Spent;69
+17:18:48;2;Entered Screen;13
+17:19:28;0;Would you choose to use this design process in future projects based on your current experience?;No I would not, it takes a lot of time to do it like this and I believe there are better ways of doing this. 
+17:19:28;2;Time Spent;40
+17:19:28;2;Entered Screen;14
+17:21:54;0;Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.;Add the numbers of the planes to the model. Because most of the time I was searching for which plane I was making changing instead of thinking about stability of the structure. Furthermore, it could be helpfull to organize the planes more logically  because now they were kind of randomly dividing across the building. 
+17:21:54;2;Time Spent;146
+17:21:54;2;Entered Screen;15

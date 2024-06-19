@@ -1,0 +1,80 @@
+Time;Iteration;Description;Value
+17:06:01;1;Entered Screen;1
+17:06:23;1;Time Spent;21
+17:06:23;1;Entered Screen;2
+17:07:22;1;Time Spent;59
+17:07:22;1;Entered Screen;3
+17:19:07;1;Total strain energy;1,68E+06
+17:19:07;1;Total structural volume;9,25E+10
+17:19:07;1;1, Space ID: 7;1240000
+17:19:07;1;2, Space ID: 8;123167
+17:19:07;1;3, Space ID: 9;111201
+17:19:07;1;4, Space ID: 2;104214
+17:19:07;1;5, Space ID: 10;88017,8
+17:19:07;1;6, Space ID: 1;82298,6
+17:19:07;1;7, Space ID: 3;69245
+17:19:07;1;8, Space ID: 4;39450,4
+17:19:07;1;9, Space ID: 5;34251,2
+17:19:07;1;10, Space ID: 6;33048,5
+17:19:07;1;Number of beams;34
+17:19:07;1;Number of trusses;0
+17:19:07;1;Number of flat shells;16
+17:19:07;1;Time Spent;705
+17:19:07;1;Entered Screen;5
+17:19:50;1;Space Removed;10
+17:19:54;1;Time Spent;46
+17:19:54;1;Entered Screen;6
+17:20:28;1;Space Split;7
+17:20:28;1;Scale Factor;1,0378
+17:20:30;1;Time Spent;36
+17:20:30;1;Entered Screen;7
+17:20:34;2;Time Spent;3
+17:20:34;2;Entered Screen;1
+17:20:37;2;Time Spent;3
+17:20:37;2;Entered Screen;2
+17:20:39;2;Time Spent;1
+17:20:39;2;Entered Screen;4
+17:26:52;2;Total strain energy;2,06E+06
+17:26:52;2;Total structural volume;6,99E+10
+17:26:52;2;1, Space ID: 12;1140000
+17:26:52;2;2, Space ID: 11;390107
+17:26:52;2;3, Space ID: 2;337293
+17:26:52;2;4, Space ID: 3;154832
+17:26:52;2;5, Space ID: 9;135021
+17:26:52;2;6, Space ID: 8;126585
+17:26:52;2;7, Space ID: 1;90572
+17:26:52;2;8, Space ID: 4;83772,7
+17:26:52;2;9, Space ID: 5;35960,5
+17:26:52;2;10, Space ID: 6;26501,3
+17:26:52;2;Number of beams;29
+17:26:52;2;Number of trusses;4
+17:26:52;2;Number of flat shells;12
+17:26:52;2;Time Spent;373
+17:26:52;2;Entered Screen;5
+17:27:12;2;Space Removed;9
+17:27:14;2;Time Spent;22
+17:27:14;2;Entered Screen;6
+17:27:36;2;Space Split;8
+17:27:36;2;Scale Factor;1,0871
+17:27:37;2;Time Spent;23
+17:27:37;2;Entered Screen;8
+17:27:51;2;Time Spent;13
+17:27:51;2;Entered Screen;9
+17:28:23;4;How satisfied were you with the overall design process you experienced?;I think I did a good job on designing the buidling
+17:28:23;2;Time Spent;31
+17:28:23;2;Entered Screen;10
+17:28:47;5;How easy was it to use the design tools provided?;Easy to use not really complex
+17:28:47;2;Time Spent;24
+17:28:47;2;Entered Screen;11
+17:29:14;3;How satisfied are you with the design decisions you made?;Could be better if I would do it for a longer time because you will see more defects
+17:29:14;2;Time Spent;26
+17:29:14;2;Entered Screen;12
+17:29:43;0;How do you think having AI assistance would have changed your design process?;yes, because it will see the easiest solutions
+17:29:43;2;Time Spent;29
+17:29:43;2;Entered Screen;13
+17:30:20;0;Would you choose to use this design process in future projects based on your current experience?;yes, if it is more optimized and if it takes less time to design a building I would!
+17:30:20;2;Time Spent;36
+17:30:20;2;Entered Screen;14
+17:31:47;0;Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.;nothing I know now.
+17:31:47;2;Time Spent;87
+17:31:47;2;Entered Screen;15
