@@ -1,11 +1,14 @@
 #include <iostream>
+
 #include <bso/spatial_design/ms_building.hpp>
 #include <bso/spatial_design/cf_building.hpp>
 #include <bso/utilities/geometry.hpp>
+#include <bso/utilities/data_point.hpp>
 #include <bso/structural_design/sd_model.hpp>
+#include <bso/building_physics/bp_model.hpp>
 #include <bso/grammar/grammar.hpp>
 #include <bso/visualization/visualization.hpp>
-#include <bso/grammar/sd_grammars/design_horizontal.cpp>
+#include <bso/grammar/sd_grammars/design_response_grammar.cpp>
 #include <boost/algorithm/string.hpp>
 
 #include <cstdlib>
@@ -15,6 +18,7 @@
 #include <map>
 #include <algorithm>
 
+std::vector<std::string> VIS_OPTIONS = {"ms","sc","rc","cb","sd","fe","bp"};
 std::vector<std::string> OUT_OPTIONS = {"result_line", "verbose", "ms_files","best","all"};
 
 int end, begin = 0;
@@ -80,6 +84,14 @@ int main(int argc, char* argv[])
 								<<   "\t" << "\'best\' (default) will only write the best all the designs to\n"
 								<<   "\t" << "the specified format. More than one option can be given,\n"
 								<<   "\t" << "but \'all\' and \'best\' cannot be given simultaneously.\n";
+			std::cout << "-v\t" << "or --visualization, to specify which models are\n"
+								<<   "\t" << "visualized: \'ms\' for \'Movable Sizable\',\n"
+								<<   "\t" << "\'sc\' for \'Super Cube\', \'rc\' for \'conformal model with\n"
+								<<   "\t" << "ReCtangles\', \'cb\' for \'conformal model with CuBoids\'\n"
+								<<   "\t" << "\'sd\' for'\'Structural Design\', \'fe\' for \'Finite\n"
+								<<   "\t" << "Elements of the structural design model\',\n"
+								<<   "\t" << "and \'bp\' for the \'Building Physics model\'.\n"
+								<<   "\t" << "More than one can be specified.\n";
             std::cout << "-s\t"	<< "or --shear, expects a real value x where 0 <= x <= 1\n";
             std::cout << "-a\t" << "or --axial, expects a real value x where 0 <= x <= 1\n";
             std::cout << "-b\t" << "or --bending, expects a real value x where 0 <= x <= 1\n";
@@ -215,6 +227,31 @@ int main(int argc, char* argv[])
 				}
 			}
 		}
+		else if (*arg == "-v" || *arg == "--visualize")
+		{
+			while (++arg != args.end() && arg->operator[](0) != '-')
+			{
+				std::string visSpec = *arg;
+				boost::trim(visSpec);
+				if (std::find(VIS_OPTIONS.begin(),VIS_OPTIONS.end(),visSpec) == VIS_OPTIONS.end())
+				{
+					std::stringstream errorMessage;
+					errorMessage << "\nError, did not recognize: \"" << visSpec << "\"\n"
+											 << "as an option for -v or --visualization as a specification\n"
+											 << "of a model to visualize, use -h or --help for help\n";
+					throw std::invalid_argument(errorMessage.str());
+				}
+				visualizations.push_back(visSpec);
+			}
+			if (visualizations.size() == 0)
+			{
+				std::stringstream errorMessage;
+				errorMessage << "\nError, expected at least one string after\n"
+										 << "-v or --visualize, received nothing. Use -h or\n"
+										 << "--help for help\n";
+				throw std::invalid_argument(errorMessage.str());
+			}
+		}
 		else
 		{
 			std::stringstream errorMessage;
@@ -238,7 +275,8 @@ int main(int argc, char* argv[])
 	}
 	if (!outputAll && !outputBest) outputBest = true;
 	out("Parsed program arguments", true, true, verbose);
-
+	if (!visualizations.empty()) visualization::initVisualization(argc,argv);
+	out("Initialized visualization", true, true, verbose);
 
 	std::vector<spatial_design::ms_building> msDesigns;
 	std::vector<spatial_design::ms_building> msDesignsTemp;
@@ -269,120 +307,107 @@ int main(int argc, char* argv[])
 	double floorArea = msDesigns.back().getFloorArea();
 	std::vector<spatial_design::sc_building> scDesigns;
 	std::vector<structural_design::sd_model> sdModels;
+	std::vector<building_physics::bp_model> bpModels;
+	for (unsigned int i = 0; i <= iterations; ++i)
+	{
+		out("Iteration: ",false,false,verbose); out(i,true,false,verbose);
+		if (std::find(visualizations.begin(),visualizations.end(),"sc") != visualizations.end() ||
+				result_line)
+		{
+			scDesigns.push_back(spatial_design::sc_building(msDesigns.back()));
+			out("initialized sc building",true,true,verbose);
+		}
 
-	structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
-	structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
-	structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
-	structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
+		// step 1, generate SD and BP models and evaluate them.
+		spatial_design::cf_building cf(msDesigns.back(),1e-6);
+		out("Initialized conformal model",true,true,verbose);
 
-	// LOOP
-    for (unsigned int i = 0; i <= iterations; ++i)
-    {
-        out("Iteration: ",false,false,verbose); out(i,true,false,verbose);
+		grammar::grammar grm(cf);
+		out("Initialized grammar",true,true,verbose);
 
-        // GENERATE SD MODEL AND EVALUATE MODEL
-        spatial_design::cf_building cf(msDesigns.back(), 1e-6);
-        out("Initialized conformal model", true, true, verbose);
+		bso::structural_design::component::structure trussStructure("truss",{{"A",2250},{"E",3e4}});
+		bso::structural_design::component::structure beamStructure("beam",{{"width",150},{"height",150},{"poisson",0.3},{"E",3e4}});
+		bso::structural_design::component::structure flatShellStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e4}});
+		bso::structural_design::component::structure substituteStructure("flat_shell",{{"thickness",150},{"poisson",0.3},{"E",3e-2}});
 
-        grammar::grammar grm(cf);
-        out("Initialized grammar", true, true, verbose);
-
-        sdModels.push_back(grm.sd_grammar<grammar::DESIGN_HORIZONTAL>(std::string("settings/sd_settings.txt"),etaBend,etaAx,etaShear,etaNoise,etaConverge,checkingOrder,trussStructure,beamStructure,flatShellStructure,substituteStructure));
+		sdModels.push_back(grm.sd_grammar<grammar::DESIGN_RESPONSE>(std::string("settings/sd_settings.txt"),etaBend,etaAx,etaShear,etaNoise,etaConverge,checkingOrder,trussStructure,beamStructure,flatShellStructure,substituteStructure));
 		out("Generated structural model",true,true,verbose);
 
-        visualization::visualize(msDesigns.back(),"","ms_building",4.0);
-		visualization::visualize(cf,"cuboid");
-        visualization::visualize(sdModels.back());
+		sdModels.back().analyze();
+		out("Evaluated structural model: ",false,false,verbose);
+		double sdResult = sdModels.back().getTotalResults().mTotalStrainEnergy;
+		out(sdResult,true,true,verbose);
 
-        sdModels.back().analyze();
-        out("Evaluated structural model: ", false, false, verbose);
-        double sdResult = sdModels.back().getTotalResults().mTotalStrainEnergy;
-        out(sdResult, true, true, verbose);
+		if (!visualizations.empty()) for (const auto& visOption : visualizations)
+		{
+			if (visOption == "ms" && i != 0) visualization::visualize(msDesignsTemp.back(),"","ms_building",4.0);
+			if (visOption == "ms") visualization::visualize(msDesigns.back(),"","ms_building",4.0);
+			if (visOption == "sc") visualization::visualize(scDesigns.back());
+			if (visOption == "rc") visualization::visualize(cf,"rectangle");
+			if (visOption == "cb") visualization::visualize(cf,"cuboid");
+			if (visOption == "sd") visualization::visualize(sdModels.back());
+			if (visOption == "fe") visualization::visualize(sdModels.back(), "element");
+			if (visOption == "fe") visualization::visualize(sdModels.back(), "strain_energy");
+		}
+		out("Sent models to visualization",true,true,verbose);
+		if (i >= iterations) break;
 
-        // CREATE A NEW MS MODEL
-        spatial_design::ms_building newMS = msDesigns.back();
+		// create a new MS model
+		spatial_design::ms_building newMS = msDesigns.back();
 
-        // GET PERFORMANCES PER SPACE
-        std::vector<std::pair<double, spatial_design::ms_space*>> spacePerformances;
-        for (const auto& space : newMS.getSpacePtrs())
-        {
-            auto spaceGeom = space->getGeometry();
-            double spacePerformance = sdModels.back().getPartialResults(&spaceGeom).mTotalStrainEnergy;
-			spacePerformance /= space->getFloorArea();
-            spacePerformances.push_back({spacePerformance, space});
+        // Get performances per space and store in a vector
+        std::vector<std::pair<double, std::shared_ptr<spatial_design::ms_space>>> spacePerformances;
+
+        for (const auto& j : newMS.getSpacePtrs()) {
+            auto spaceGeom = j->getGeometry();
+            auto id = j->getID();
+            double performance = sdModels.back().getPartialResults(&spaceGeom).mTotalStrainEnergy / j->getFloorArea();
+            spacePerformances.emplace_back(performance, j);
         }
 
-        // SORT SPACES FROM WORST TO BEST (LOW STRAIN ENERGY TO HIGH STRAIN ENERGY)
+        // Sort the spacePerformances vector based on the performance values in descending order
         std::sort(spacePerformances.rbegin(), spacePerformances.rend());
 
-        // OUTPUT RANKED PERFORMANCES PER SPACE
+        // Output the ranked performances
         std::cout << "Ranked Performances:\n";
-        int rank = 1;
         for (const auto& performance : spacePerformances) {
             auto id = performance.second->getID();
-            std::cout << rank << ", Space ID: " << id << ", Performance: " << performance.first << std::endl;
-            rank++;
+            std::cout << "ID: " << id << ", Performance: " << performance.first << std::endl;
         }
 
+        // Delete the nToDelete worst-performing spaces
+        for (unsigned int i = 0; i < nSpacesDelete && i < spacePerformances.size(); ++i) {
+            auto spaceToDelete = spacePerformances[i].second;
+            newMS.deleteSpace(*spaceToDelete);
+        }
 
-        // DELETE n WORST PERFORMING SPACES
-		//for (unsigned int j = 0; j < nSpacesDelete && j < spacePerformances.size(); ++j)
-        for (unsigned int j = spacePerformances.size() - 1; j >= spacePerformances.size() - nSpacesDelete && j < spacePerformances.size(); --j)
-		{
-			newMS.deleteSpace(*(spacePerformances[j].second));
-		}
         newMS.setZZero();
-
-        msDesignsTemp.push_back(newMS);
-
-		// SCALE TO RECOVER INITIAL FLOOR AREA
-		double scaleFactor = sqrt(floorArea / newMS.getFloorArea());
-		newMS.scale({{0,scaleFactor},{1,scaleFactor}});
+        std::vector<spatial_design::ms_space*> floatingSpaces;
+        if (newMS.hasFloatingSpaces(floatingSpaces)) 
+		{
+            for (auto& i : floatingSpaces) newMS.deleteSpace(i);
+        }
+		out("Removed worst performing spaces",true,true,verbose);
+		msDesignsTemp.push_back(newMS);
+		
+        // Step to scale and split spaces to recover initial conditions
+        // Scale the dimensions in x and y direction
+        double scaleFactor = sqrt(floorArea / newMS.getFloorArea());
+        newMS.scale({{0,scaleFactor},{1,scaleFactor}});
 		newMS.snapOn({{0,1},{1,1}});
 
-        // EXCLUDE ALREADY SPLIT SPACES
-        auto removeSpacesIterator = std::remove_if(spacePerformances.begin(), spacePerformances.end(),
-            [nSpaces](const auto& spacePerformance) {
-                return spacePerformance.second->getID() > nSpaces;
-            }
-        );
-        spacePerformances.erase(removeSpacesIterator, spacePerformances.end());
+        newMS.setZZero();
+        out("Scaled design to initial volume", true, true, verbose);
 
-        // SPLIT n BEST PERFORMING SPACES
-        //for (unsigned int j = spacePerformances.size() - 1; j >= spacePerformances.size() - nSpacesDelete && j < spacePerformances.size(); --j)
-        for (unsigned int j = 0; j < nSpacesDelete && j < spacePerformances.size(); ++j)
-        {
-            auto spaceWithLowScore = spacePerformances[j].second;
-            // FIND THE LARGEST DIMENSION
-            double largestDimension = -1.0; // Initialize with a small value
-            unsigned int largestDimensionIndex = 0;
-            for (unsigned int k = 0; k < 3; ++k) {
-                double dimension = spaceWithLowScore->getDimensions()(k);
-                if (dimension > largestDimension) {
-                    largestDimension = dimension;
-                    largestDimensionIndex = k;
-                }
-            }
+        msDesigns.push_back(newMS);
+        out("Modified building spatial design into a new one", true, true, verbose);
 
-            // SPLIT THE SPACE ALONG ITS LARGEST DIMENSION
-            newMS.splitSpace(spaceWithLowScore, {{largestDimensionIndex, 2}});
-        }
+	}
+    out("finished SCDP process",true,true,verbose);
 
-		newMS.snapOn({{0,100},{1,100},{2,100}});
-		out("Split spaces to restore number of spaces",true,true,verbose);
-
-		// IN CASE THE LOWER SPACES WERE REMOVED RESET MINIMUM Z COORDINATE TO Z
-		newMS.setZZero();
-		out("Scaled design to initial volume",true,true,verbose);
-
-		msDesigns.push_back(newMS);
-		out("Modified building spatial design into a new one",true,true,verbose);
-    }
-    out("Finished SCDP process", true, true, verbose);
-
-	// INITIALIZE VISUALIZATION
-	visualization::initVisualization(argc,argv);
-	visualization::endVisualization();
+	if (!visualizations.empty()) visualization::endVisualization();
 
 	return 0;
 }
+
+
