@@ -1,0 +1,132 @@
+Time;Iteration;Description;Value
+16:03:51;1;Entered Screen;1
+16:04:55;1;Time Spent;64
+16:04:55;1;Entered Screen;2
+16:06:52;1;Time Spent;116
+16:06:52;1;Entered Screen;3
+16:17:38;1;Total strain energy;7,23E+06
+16:17:38;1;Total structural volume;8,32E+10
+16:17:39;1;1, Space ID: 3, Performance: 2.08292e+06;2,08E+06
+16:17:39;1;2, Space ID: 7, Performance: 1.78914e+06;1,79E+06
+16:17:39;1;3, Space ID: 1, Performance: 1.49174e+06;1,49E+06
+16:17:39;1;4, Space ID: 5, Performance: 899422;899422
+16:17:39;1;5, Space ID: 8, Performance: 700098;700098
+16:17:39;1;6, Space ID: 2, Performance: 618864;618864
+16:17:39;1;7, Space ID: 9, Performance: 445298;445298
+16:17:39;1;8, Space ID: 4, Performance: 440108;440108
+16:17:39;1;9, Space ID: 6, Performance: 332460;332460
+16:17:39;1;10, Space ID: 10, Performance: 309071;309071
+16:17:39;1;Number of beams;36
+16:17:39;1;Number of trusses;14
+16:17:39;1;Number of flat shells;0
+16:17:39;1;Time Spent;646
+16:17:39;1;Entered Screen;5
+16:17:40;1;AI structural model 1: strain energy;290619
+16:17:40;1;AI structural model 1: structural volume;-
+16:17:40;1;AI structural model 2: strain energy;3,37E+06
+16:17:40;1;AI structural model 2: structural volume;-
+16:17:40;1;AI structural model 3: strain energy;2,57E+07
+16:17:40;1;AI structural model 3: structural volume;-
+16:23:45;1;Chosen SD model;3
+17:23:45;1;Total strain energy;3372960
+18:23:45;1;Total structural volume;79508000000
+16:23:45;1;1, Space ID: 7, Performance: 1.00453e+06;1,00E+06
+16:23:45;1;2, Space ID: 1, Performance: 680499;680499
+16:23:45;1;3, Space ID: 2, Performance: 680499;680499
+16:23:45;1;4, Space ID: 8, Performance: 449496;449496
+16:23:45;1;5, Space ID: 5, Performance: 424133;424133
+16:23:45;1;6, Space ID: 6, Performance: 424133;424133
+16:23:45;1;7, Space ID: 4, Performance: 418817;418817
+16:23:45;1;8, Space ID: 3, Performance: 304807;304807
+16:23:45;1;9, Space ID: 9, Performance: 203246;203246
+16:23:45;1;10, Space ID: 10, Performance: 47194.4;47194,4
+16:23:46;1;Time Spent;366
+16:23:46;1;Entered Screen;6
+16:26:34;1;Space Removed;7
+16:26:37;1;Time Spent;171
+16:26:37;1;Entered Screen;7
+16:27:45;1;Space Split;5
+16:27:45;1;Scale Factor;1,1832
+16:27:57;1;Time Spent;79
+16:27:57;1;Entered Screen;8
+16:27:58;1;Own building spatial design;100%
+16:27:58;1;AI generated design 1;108%
+16:27:58;1;AI generated design 2;87%
+16:27:58;1;AI generated design 3;93%
+16:32:35;1;Chosen MS model;2
+16:32:35;1;Time Spent;277
+16:32:35;1;Entered Screen;9
+16:33:50;2;Time Spent;74
+16:33:50;2;Entered Screen;1
+16:34:03;2;Time Spent;12
+16:34:03;2;Entered Screen;2
+16:34:17;2;Time Spent;14
+16:34:17;2;Entered Screen;4
+16:41:01;2;Total strain energy;4,50E+06
+16:41:01;2;Total structural volume;9,58E+10
+16:41:01;2;1, Space ID: 7, Performance: 1.61617e+06;1,62E+06
+16:41:01;2;2, Space ID: 4, Performance: 1.09828e+06;1,10E+06
+16:41:01;2;3, Space ID: 11, Performance: 528119;528119
+16:41:01;2;4, Space ID: 3, Performance: 485180;485180
+16:41:01;2;5, Space ID: 12, Performance: 445226;445226
+16:41:01;2;6, Space ID: 1, Performance: 377467;377467
+16:41:01;2;7, Space ID: 8, Performance: 370991;370991
+16:41:01;2;8, Space ID: 5, Performance: 341522;341522
+16:41:01;2;9, Space ID: 9, Performance: 271232;271232
+16:41:01;2;10, Space ID: 6, Performance: 165696;165696
+16:41:01;2;Number of beams;38
+16:41:01;2;Number of trusses;12
+16:41:01;2;Number of flat shells;0
+16:41:01;2;Time Spent;403
+16:41:01;2;Entered Screen;5
+16:41:02;2;AI structural model 1: strain energy;289561
+16:41:02;2;AI structural model 1: structural volume;-
+16:41:03;2;AI structural model 2: strain energy;2,17E+06
+16:41:03;2;AI structural model 2: structural volume;-
+16:41:03;2;AI structural model 3: strain energy;1,52E+07
+16:41:03;2;AI structural model 3: structural volume;-
+16:42:32;2;Chosen SD model;3
+17:42:32;2;Total strain energy;2174040
+18:42:32;2;Total structural volume;76836600000
+16:42:33;2;1, Space ID: 7, Performance: 506854;506854
+16:42:33;2;2, Space ID: 12, Performance: 497530;497530
+16:42:33;2;3, Space ID: 11, Performance: 456941;456941
+16:42:33;2;4, Space ID: 1, Performance: 372262;372262
+16:42:33;2;5, Space ID: 6, Performance: 298979;298979
+16:42:33;2;6, Space ID: 5, Performance: 298835;298835
+16:42:33;2;7, Space ID: 4, Performance: 283240;283240
+16:42:33;2;8, Space ID: 3, Performance: 222362;222362
+16:42:33;2;9, Space ID: 9, Performance: 104178;104178
+16:42:33;2;10, Space ID: 8, Performance: 86331.2;86331,2
+16:42:33;2;Time Spent;92
+16:42:33;2;Entered Screen;6
+16:43:15;2;Space Removed;7
+16:43:18;2;Time Spent;45
+16:43:18;2;Entered Screen;7
+16:44:10;2;Space Split;9
+16:44:10;2;Scale Factor;1,2472
+16:44:13;2;Time Spent;55
+16:44:13;2;Entered Screen;8
+16:46:33;2;Chosen MS model;1
+16:46:33;2;Time Spent;139
+16:46:33;2;Entered Screen;10
+16:47:17;2;Time Spent;43
+16:47:17;2;Entered Screen;11
+16:48:04;2;How satisfied were you with the overall design process you experienced?;
+16:48:04;2;Time Spent;47
+16:48:04;2;Entered Screen;12
+16:48:38;2;How easy was it to use the design tools provided?;
+16:48:38;2;Time Spent;33
+16:48:38;2;Entered Screen;13
+16:49:11;1;How often did you find the AI-provided models reliable enough to influence your design decisions?;
+16:49:11;2;Time Spent;32
+16:49:11;2;Entered Screen;14
+16:50:09;0;How do you think your design process would have differed if you had not had AI assistance?;
+16:50:09;2;Time Spent;58
+16:50:09;2;Entered Screen;15
+16:50:29;0;Would you choose to use this design process in future projects based on your current experience?;
+16:50:29;2;Time Spent;19
+16:50:29;2;Entered Screen;16
+16:52:01;0;Please provide any additional comments or suggestions on how we could improve the design process used in this experiment.;
+16:52:01;2;Time Spent;92
+16:52:01;2;Entered Screen;17
