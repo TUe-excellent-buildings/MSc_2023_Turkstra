@@ -22,7 +22,7 @@
 #include <bso/grammar/sd_grammars/design_human.cpp>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "bso/stb_image.h"
 
 using namespace std;
 
@@ -36,7 +36,7 @@ bool tableInitialized = false;
 
 typedef void (*ButtonCallback)(int);
 
-bso::spatial_design::ms_building MS("files_SCDP/Villa");
+bso::spatial_design::ms_building MS("Villa");
 bso::spatial_design::cf_building CF(MS, 1e-6);
 bso::grammar::grammar grm(CF);
 std::vector<bso::spatial_design::ms_building> msModels;
@@ -126,7 +126,7 @@ struct TextField {
 };
 
 // Define the variant to handle different types of values
-using LogValue = std::variant<std::string, double>;
+using LogValue = std::variant<std::string, double, int>;
 
 struct LogEntry {
     std::string time;
@@ -150,7 +150,7 @@ std::vector<LogEntry> logEntries;
 std::mutex logMutex;  // For thread-safe logging
 
 void initializeModels() {
-    bso::spatial_design::ms_building MS("files_SCDP/Villa");  // Create an MS model
+    bso::spatial_design::ms_building MS("Villa");  // Create an MS model
     msModels.push_back(MS);  // Add the MS model to the vector
 }
 
@@ -437,8 +437,8 @@ GLuint imgVilla;
 GLuint imgElements;
 
 void initializeTextures() {
-    imgVilla = loadImageAsTexture("files_SCDP/Villa.png");
-    imgElements = loadImageAsTexture("files_SCDP/Elements.png");
+    imgVilla = loadImageAsTexture("Villa.png");
+    imgElements = loadImageAsTexture("Elements.png");
     // Load more textures as needed
 }
 
@@ -455,20 +455,20 @@ int lastScreen = -1;
 
 void createSDmodel() {
     if (currentScreen == 3) {
-        bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
+        bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
         visualise_sd(SD_model);
     }
     else {
-        bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
+        bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
         visualise_sd(SD_model_2);
     }
 }
 
 void analyzeSDmodel() {
-    bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
+    bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
     SD_model.analyze();
-	unsigned int strainEnergy = SD_model.getTotalResults().mTotalStrainEnergy;
-	unsigned int structuralVolume =SD_model.getTotalResults().mTotalStructuralVolume;
+	double strainEnergy = SD_model.getTotalResults().mTotalStrainEnergy;
+	double structuralVolume =SD_model.getTotalResults().mTotalStructuralVolume;
 
 	std::cout << "Strain Energy" << strainEnergy << std::endl;
 	std::cout << "Structural Volume" << structuralVolume << std::endl;
@@ -508,7 +508,7 @@ void analyzeSDmodel() {
 void changeScreen(int screen) {
     if (lastScreen != -1) {
         auto endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::seconds>(endTime - screenStartTimes[lastScreen]).count();
+        double duration = std::chrono::duration_cast<std::chrono::seconds>(endTime - screenStartTimes[lastScreen]).count();
         std::cout << "Time spent on screen " << lastScreen << ": " << duration << " seconds." << std::endl;
 
         // Log the time spent on the last screen
@@ -534,23 +534,23 @@ void changeScreen(int screen) {
         vpmanager_local.clearviewports();
         //bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
         std::vector<bso::structural_design::component::structure> structureAssignments(nRectangles);
-        bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
+        bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
         visualise_sd(SD_model);
     } else if(screen == 4) {
         vpmanager_local.clearviewports();
         //bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
         std::vector<bso::structural_design::component::structure> structureAssignments_it2(nRectangles);
-        bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
+        bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
         visualise_sd_2(SD_model_2);
     } else if(screen > 4 && screen <= 6) {
         vpmanager_local.clearviewports();
         visualise(MS);
         if (iteration_counter == 1) {
-            bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
+            bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
             visualise_sd_add(SD_model);
             sdModels.push_back(SD_model);
         } else {
-            bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
+            bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
             visualise_sd_add(SD_model_2);
         }
         visualizationActive = true;
@@ -670,10 +670,10 @@ void removeSpaceConfirmed(int spaceID) {
     visualise(MS);
 
     if (iteration_counter == 1) {
-            bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
+            bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
             visualise_sd_add(SD_model);
         } else {
-            bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
+            bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
             visualise_sd_add(SD_model_2);
     }
 
@@ -755,10 +755,10 @@ void splitSpaceConfirmed(int spaceID) {
 
         visualise(MS);
         if (iteration_counter == 1) {
-            bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
+            bso::structural_design::sd_model SD_model = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments);
             visualise_sd_add(SD_model);
         } else {
-            bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("files_SCDP/settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
+            bso::structural_design::sd_model SD_model_2 = grm.sd_grammar<bso::grammar::DESIGN_INPUT>(std::string("settings/sd_settings.txt"), etaBend, etaAx, etaShear, etaNoise, etaConverge, checkingOrder, trussStructure, beamStructure, flatShellStructure, substituteStructure, structureAssignments_it2);
             visualise_sd_add(SD_model_2);
         }
         splittingConfirmed = true;
@@ -1390,7 +1390,7 @@ void iterationDone() {
     //std::fill(tableClicked.begin(), tableClicked.end(), 0);  // Reset all clicks to zero
 
 
-    bso::structural_design::sd_model SD_model_sub = grm.sd_grammar<bso::grammar::DESIGN_HUMAN>(std::string("files_SCDP/settings/sd_settings.txt"), flatShellStructure, substituteStructure);
+    bso::structural_design::sd_model SD_model_sub = grm.sd_grammar<bso::grammar::DESIGN_HUMAN>(std::string("settings/sd_settings.txt"), flatShellStructure, substituteStructure);
     nRectangles = SD_model_sub.getSubRectangles().size();
     tableClicked = std::vector<int>(nRectangles, 0);
     //bso::structural_design::sd_model SD_model_sub = grm.sd_grammar<bso::grammar::DESIGN_HUMAN>(std::string("settings/sd_settings.txt"), flatShellStructure, substituteStructure);
