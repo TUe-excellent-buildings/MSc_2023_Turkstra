@@ -37,7 +37,7 @@ bool tableInitialized = false;
 typedef void (*ButtonCallback)(int);
 
 bso::spatial_design::ms_building MS("Villa");
-bso::spatial_design::cf_building CF(MS, 1e-6);
+bso::spatial_design::cf_building CF(MS, 1e-3);
 bso::grammar::grammar grm(CF);
 std::vector<bso::spatial_design::ms_building> msModels;
 std::vector<bso::structural_design::sd_model> sdModels;
